@@ -1,0 +1,1932 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0b1119">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Missão Aprovação">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icon.svg">
+<title>Missão Aprovação</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+  :root{
+    --bg: #0a1420;
+    --panel: #0f1c2e;
+    --panel2: #16273c;
+    --border: #1e3049;
+    --ink: #eef4fb;
+    --muted: #7d93ab;
+    --accent: #2f8fff;
+    --accent2: #4fb8ff;
+    --accent-ink: #ffffff;
+    --ok: #22c55e;
+    --err: #ef4444;
+    --warn: #f59e0b;
+    --info: #5b8def;
+    --grid: #1e3049;
+    --radius: 16px;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ height:100%; }
+  body{
+    margin:0;
+    background: radial-gradient(1100px 500px at 15% -10%, #142a45 0%, var(--bg) 55%);
+    color:var(--ink);
+    font-family:'Inter', system-ui, sans-serif;
+    display:flex;
+    min-height:100vh;
+  }
+  h1,h2,h3{ font-family:'Sora', sans-serif; margin:0; }
+
+  /* ---------- Sidebar ---------- */
+  .sidebar{
+    width: 240px; flex-shrink:0;
+    background: var(--panel);
+    border-right:1px solid var(--border);
+    display:flex; flex-direction:column;
+    padding: 18px 12px;
+    position: sticky; top:0; height:100vh; overflow-y:auto;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; padding: 6px 8px 18px; }
+  .brand-badge{
+    width:36px; height:36px; border-radius:10px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display:flex; align-items:center; justify-content:center;
+    font-weight:800; color:var(--accent-ink); font-size:16px;
+  }
+  .brand-text .name{ font-weight:800; font-size:14.5px; line-height:1.1; }
+  .brand-text .sub{ font-size:11px; color:var(--muted); letter-spacing:.04em; }
+
+  .nav{ display:flex; flex-direction:column; gap:2px; margin-top: 6px;}
+  .nav-item{
+    display:flex; align-items:center; gap:11px;
+    padding: 10px 12px; border-radius: 10px;
+    color: var(--muted); background:transparent; border:none;
+    font-size: 13.5px; font-weight:600; cursor:pointer; text-align:left;
+    font-family:'Inter',sans-serif;
+    transition: background .15s ease, color .15s ease;
+    width:100%;
+  }
+  .nav-item svg{ width:17px; height:17px; flex-shrink:0; opacity:.85; }
+  .nav-item:hover{ background: var(--panel2); color: var(--ink); }
+  .nav-item.active{ background: var(--accent); color: var(--accent-ink); }
+  .nav-item.active svg{ opacity:1; }
+  .nav-divider{ height:1px; background:var(--border); margin:12px 4px; }
+
+  /* ---------- Main ---------- */
+  .main{ flex:1; min-width:0; padding: 26px 30px 60px; }
+  .topbar{ display:flex; align-items:center; justify-content:space-between; margin-bottom:22px; flex-wrap:wrap; gap:10px;}
+  .eyebrow{ font-size: 11.5px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); font-weight:700; margin:0 0 3px;}
+  .view-title{ font-size:24px; font-weight:800; letter-spacing:-.02em; }
+  .streak{ font-size:12.5px; color:var(--muted); background:var(--panel); border:1px solid var(--border); padding:8px 14px; border-radius:10px; }
+  .streak b{ color:var(--accent); }
+
+  .view{ display:none; animation: fade .25s ease; }
+  .view.active{ display:block; }
+  @keyframes fade{ from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);} }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius: var(--radius); padding:20px; }
+  .card h2{ font-size:13px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-bottom:14px;}
+
+  .grid2{ display:grid; grid-template-columns: 1fr 1.6fr; gap:16px; }
+  @media (max-width: 860px){ .grid2{ grid-template-columns:1fr; } .sidebar{ width:76px; } .brand-text, .nav-item span.label{ display:none; } .nav-item{ justify-content:center; } .brand{ justify-content:center; padding:6px 0 18px;} }
+
+  .stats{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-top:16px; }
+  @media (max-width:560px){ .stats{ grid-template-columns:1fr; } }
+  .stat{ background:var(--panel); border:1px solid var(--border); border-radius:var(--radius); padding:16px 18px; }
+  .stat .num{ font-size:24px; font-weight:800; }
+  .stat .lbl{ font-size:12px; color:var(--muted); margin-top:4px; }
+  .stat.correct .num{ color:var(--ok); }
+  .stat.wrong .num{ color:var(--err); }
+
+  .donut-box{ position:relative; display:flex; justify-content:center; }
+  .donut-center{ position:absolute; top:50%; left:50%; transform:translate(-50%,-50%); text-align:center; }
+  .donut-center .pct{ font-size:28px; font-weight:800; }
+  .donut-center .lbl{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; margin-top:2px;}
+  .legend{ display:flex; gap:20px; justify-content:center; margin-top:12px; font-size:12.5px; }
+  .legend span{ display:inline-flex; align-items:center; gap:6px; color:var(--muted); }
+  .dot{ width:9px; height:9px; border-radius:3px; display:inline-block; }
+
+  /* buttons/forms */
+  .btn{ border:1px solid var(--border); background:var(--panel2); color:var(--ink); padding:9px 15px; border-radius:9px; font-size:13px; font-weight:600; cursor:pointer; transition:.15s; font-family:'Inter',sans-serif;}
+  .btn:hover{ border-color:var(--accent); color:var(--accent); }
+  .btn.primary{ background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#fff; border-color:var(--accent); box-shadow:0 4px 16px rgba(47,143,255,.35); }
+  .btn.primary:hover{ filter:brightness(1.08); color:var(--accent-ink); }
+  .btn.danger:hover{ border-color:var(--err); color:var(--err); }
+  input[type=text], input[type=number], textarea, select{
+    background:var(--bg); border:1px solid var(--border); color:var(--ink);
+    padding:9px 11px; border-radius:8px; font-size:13.5px; font-family:'Inter',sans-serif; width:100%;
+  }
+  textarea{ resize:vertical; }
+  label.field{ display:block; font-size:12px; color:var(--muted); margin-bottom:5px; font-weight:600; }
+
+  /* Plano de estudos */
+  .plan-list{ display:flex; flex-direction:column; gap:8px; }
+  .plan-item{ display:flex; align-items:center; gap:12px; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; }
+  .plan-item .date{ width:64px; font-size:12px; color:var(--accent); font-weight:700; }
+  .plan-item .title{ flex:1; font-size:13.5px; }
+  .plan-item.done .title{ text-decoration:line-through; color:var(--muted); }
+  .check{ width:20px; height:20px; border-radius:6px; border:2px solid var(--border); cursor:pointer; display:flex; align-items:center; justify-content:center; flex-shrink:0;}
+  .check.checked{ background:var(--ok); border-color:var(--ok); color:#0b1119; font-size:13px; font-weight:800; }
+  .row-form{ display:flex; gap:8px; margin-top:14px; }
+  .row-form input{ flex:1; }
+
+  /* Caderno de erros */
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th{ text-align:left; color:var(--muted); font-size:11.5px; text-transform:uppercase; letter-spacing:.05em; padding:8px 10px; border-bottom:1px solid var(--border);}
+  td{ padding:10px; border-bottom:1px solid var(--border); vertical-align:top;}
+  .tag{ display:inline-block; background:rgba(47,143,255,.14); color:var(--accent2); padding:2px 9px; border-radius:20px; font-size:11px; font-weight:700; }
+  .del{ background:none; border:none; color:var(--muted); cursor:pointer; font-size:16px; }
+  .del:hover{ color:var(--err); }
+
+  /* Flashcards */
+  .flash-wrap{ display:flex; flex-direction:column; align-items:center; gap:16px; }
+  .flashcard{ width:100%; max-width:420px; height:220px; perspective:1200px; cursor:pointer; }
+  .flashcard-inner{ position:relative; width:100%; height:100%; transition:transform .5s; transform-style:preserve-3d; }
+  .flashcard.flipped .flashcard-inner{ transform:rotateY(180deg); }
+  .flashcard-face{ position:absolute; inset:0; backface-visibility:hidden; border-radius:16px; display:flex; align-items:center; justify-content:center; text-align:center; padding:24px; font-size:16px; font-weight:600; border:1px solid var(--border);}
+  .flashcard-face.front{ background: linear-gradient(135deg, var(--panel2), var(--panel)); }
+  .flashcard-face.back{ background: linear-gradient(135deg, #23324a, #17212d); transform:rotateY(180deg); color:var(--accent); }
+  .flash-nav{ display:flex; gap:10px; align-items:center; }
+  .flash-count{ font-size:12.5px; color:var(--muted); }
+
+  /* Biblioteca de provas */
+  .exam-grid{ display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px; }
+  .exam-card{ background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:16px; }
+  .exam-card .name{ font-weight:700; font-size:13.5px; margin-bottom:4px; }
+  .exam-card .meta{ font-size:11.5px; color:var(--muted); margin-bottom:12px; }
+
+  /* Resolver questoes */
+  .question-box{ font-size:15px; line-height:1.5; margin-bottom:16px; }
+  .alt{ display:flex; align-items:center; gap:10px; background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:11px 14px; margin-bottom:8px; cursor:pointer; font-size:13.5px; transition:.15s;}
+  .alt:hover{ border-color:var(--accent); }
+  .alt.correct{ border-color:var(--ok); background:rgba(52,209,160,.12); }
+  .alt.wrong{ border-color:var(--err); background:rgba(229,85,107,.12); }
+  .alt-letter{ width:22px; height:22px; border-radius:6px; background:var(--bg); display:flex; align-items:center; justify-content:center; font-size:11.5px; font-weight:700; flex-shrink:0;}
+
+  /* discursiva */
+  .word-count{ font-size:12px; color:var(--muted); margin-top:8px; }
+  .draft-item{ background:var(--panel2); border:1px solid var(--border); border-radius:10px; padding:12px 14px; margin-bottom:8px; font-size:13px; }
+  .draft-item .meta{ font-size:11px; color:var(--muted); margin-bottom:5px; }
+
+  /* pomodoro */
+  .pomo-wrap{ display:flex; flex-direction:column; align-items:center; gap:18px; padding:20px 0; }
+  .pomo-ring{ position:relative; width:220px; height:220px; }
+  .pomo-time{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:42px; font-weight:800; font-family:'Sora',sans-serif; }
+  .pomo-mode{ font-size:12.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent); font-weight:700; }
+  .pomo-controls{ display:flex; gap:10px; }
+  .pomo-presets{ display:flex; gap:8px; flex-wrap:wrap; justify-content:center; }
+  .pomo-preset-btn{ border:1px solid var(--border); background:var(--panel2); color:var(--muted); padding:7px 14px; border-radius:20px; font-size:12.5px; font-weight:700; cursor:pointer; transition:.15s; font-family:'Inter',sans-serif; }
+  .pomo-preset-btn:hover{ color:var(--ink); border-color:var(--accent); }
+  .pomo-preset-btn.active{ background:var(--accent); color:var(--accent-ink); border-color:var(--accent); }
+
+  /* configuracoes */
+  .setting-row{ display:flex; align-items:center; justify-content:space-between; padding:14px 0; border-bottom:1px solid var(--border); }
+  .setting-row:last-child{ border-bottom:none; }
+  .setting-row .name{ font-size:13.5px; font-weight:600; }
+  .setting-row .desc{ font-size:12px; color:var(--muted); margin-top:2px; }
+  .switch{ width:42px; height:24px; border-radius:20px; background:var(--border); position:relative; cursor:pointer; flex-shrink:0; transition:.2s;}
+  .switch.on{ background:var(--accent); }
+  .switch::after{ content:''; position:absolute; width:18px; height:18px; border-radius:50%; background:#fff; top:3px; left:3px; transition:.2s; }
+  .switch.on::after{ left:21px; }
+
+  canvas{ max-width:100%; }
+
+  /* ---- streak ---- */
+  .streak-card{ display:flex; align-items:center; gap:16px; background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px 16px; }
+  .streak-flame{ font-size:22px; }
+  .streak-days{ display:flex; gap:5px; }
+  .streak-dot{ width:20px; height:20px; border-radius:6px; background:var(--panel2); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; font-size:9px; color:var(--muted); font-weight:700;}
+  .streak-dot.on{ background:var(--accent); border-color:var(--accent); color:var(--accent-ink); }
+
+  /* ---- course selector ---- */
+  .course-select{ margin: 0 8px 14px; }
+  .course-select select{ width:100%; font-size:12.5px; padding:8px 10px; }
+
+  /* ---- edital / priority ---- */
+  .subject-row{ display:grid; grid-template-columns: 1fr auto auto auto; align-items:center; gap:14px; padding:11px 0; border-bottom:1px solid var(--border); font-size:13px;}
+  .subject-row:last-child{ border-bottom:none; }
+  .subject-row .sname{ font-weight:600; }
+  .mini-slider{ display:flex; align-items:center; gap:6px; font-size:11px; color:var(--muted); }
+  .mini-slider input{ width:70px; padding:0; }
+  .priority-badge{ font-size:11px; font-weight:800; padding:3px 9px; border-radius:20px; }
+  .progress-bar{ width:70px; height:6px; background:var(--panel2); border-radius:4px; overflow:hidden; }
+  .progress-bar > div{ height:100%; background:var(--ok); }
+
+  /* ---- edital card estilo Mentoris ---- */
+  .mat-card{ background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:14px 16px; margin-bottom:12px; }
+  .mat-top{ display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .mat-dot{ width:9px; height:9px; border-radius:50%; flex-shrink:0; }
+  .mat-name{ font-weight:700; font-size:13.5px; flex:1; }
+  .mat-edit{ color:var(--muted); font-size:12px; cursor:pointer; opacity:.7; }
+  .mat-score{ font-size:11px; font-weight:800; padding:2px 9px; border-radius:20px; }
+  .mat-pct-row{ display:flex; justify-content:space-between; font-size:11px; color:var(--muted); margin-bottom:5px; }
+  .mat-bar{ height:6px; border-radius:4px; background:#0a1420; overflow:hidden; margin-bottom:10px; }
+  .mat-bar > div{ height:100%; border-radius:4px; }
+  .mat-stats{ display:flex; gap:14px; font-size:11px; color:var(--muted); margin-bottom:10px; flex-wrap:wrap; }
+  .mat-stats b{ color:var(--ink); font-weight:700; }
+  .mat-topic-btn{ width:100%; text-align:center; background:var(--bg); border:1px solid var(--border); color:var(--accent2); padding:8px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; }
+  .mat-topic-btn:hover{ border-color:var(--accent); }
+
+  /* ---- cronograma ---- */
+  .cronograma{ display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:6px; }
+  @media (max-width:760px){ .cronograma{ grid-template-columns:repeat(2,1fr);} }
+  .crono-day{ background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:12px; min-height:90px; }
+  .crono-day .dname{ font-size:11.5px; font-weight:800; color:var(--accent2); margin-bottom:10px; text-transform:uppercase; }
+  .crono-block{ display:flex; align-items:center; gap:7px; font-size:11.5px; background:var(--bg); border-radius:8px; padding:7px 9px; margin-bottom:6px; color:var(--ink); font-weight:600; }
+  .crono-block .cdot{ width:7px; height:7px; border-radius:50%; flex-shrink:0; }
+  .crono-block .ctime{ margin-left:auto; color:var(--accent2); font-weight:700; font-size:10.5px; }
+
+  /* ---- sm2 flashcards ---- */
+  .due-badge{ font-size:12px; color:var(--accent); font-weight:700; margin-bottom:10px; }
+  .rating-row{ display:grid; grid-template-columns:repeat(5,1fr); gap:6px; width:100%; max-width:460px; margin-top:6px;}
+  .rating-btn{ font-size:10.5px; padding:9px 4px; border-radius:9px; border:1px solid transparent; cursor:pointer; text-align:center; font-weight:700; transition:.15s; color:#fff; }
+  .rating-btn[data-r="0"]{ background:rgba(239,68,68,.16); color:#ef4444; }
+  .rating-btn[data-r="1"]{ background:rgba(249,115,22,.16); color:#f97316; }
+  .rating-btn[data-r="2"]{ background:rgba(234,179,8,.16); color:#eab308; }
+  .rating-btn[data-r="3"]{ background:rgba(34,197,94,.16); color:#22c55e; }
+  .rating-btn[data-r="4"]{ background:rgba(16,185,129,.2); color:#10b981; }
+  .rating-btn:hover{ filter:brightness(1.3); transform:translateY(-1px); }
+  .next-review{ font-size:11.5px; color:var(--muted); margin-top:4px; }
+
+  /* ---- explicacao IA ---- */
+  .ai-explain{ margin-top:14px; background:rgba(47,143,255,.08); border:1px solid rgba(47,143,255,.35); border-radius:10px; padding:13px 15px; font-size:13px; line-height:1.5; display:none;}
+  .ai-explain.show{ display:block; }
+  .ai-explain .ai-tag{ font-size:10.5px; font-weight:800; color:var(--accent); text-transform:uppercase; letter-spacing:.05em; margin-bottom:6px; }
+
+  /* ---- clonador ---- */
+  .clone-box{ text-align:center; padding:10px 0; }
+  .clone-bar{ height:8px; background:var(--panel2); border-radius:6px; overflow:hidden; margin:14px 0; }
+  .clone-bar > div{ height:100%; width:0%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition: width 1.2s ease; }
+  .clone-metric{ display:flex; justify-content:space-between; font-size:12.5px; color:var(--muted); margin-bottom:6px; }
+  .clone-metric b{ color:var(--ink); }
+
+  /* ---- relatorio ---- */
+  .report-line{ display:flex; justify-content:space-between; font-size:13px; padding:8px 0; border-bottom:1px solid var(--border); }
+  .report-line:last-child{ border-bottom:none; }
+  .report-line .v{ font-weight:700; color:var(--accent); }
+
+  /* ---- simulador cognitivo ---- */
+  .sim-wrap{ display:flex; align-items:center; gap:22px; flex-wrap:wrap; }
+  .sim-ring{ position:relative; width:120px; height:120px; flex-shrink:0; }
+  .sim-ring .val{ position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:22px; font-weight:800; }
+  .sim-info{ flex:1; min-width:180px; }
+  .sim-info .next{ font-size:13px; color:var(--ink); margin-top:4px; }
+  .sim-info .next b{ color:var(--accent); }
+  .sim-decay-note{ font-size:11.5px; color:var(--muted); margin-top:6px; line-height:1.5;}
+
+  /* ---- notificacoes / lembretes (estilo "Revisões do dia") ---- */
+  .notif-item{ display:flex; align-items:center; gap:10px; background:var(--panel2); border-left:3px solid var(--accent); border-radius:8px; padding:11px 13px; margin-bottom:8px; font-size:12.5px;}
+  .notif-item:last-child{ margin-bottom:0; }
+  .notif-icon{ font-size:15px; }
+  .notif-item .t{ color:var(--muted); font-size:10.5px; margin-top:2px;}
+  .notif-item b{ color:var(--ink); }
+  .notif-revisei{ margin-left:auto; background:linear-gradient(90deg,var(--accent),var(--accent2)); color:#fff; border:none; padding:6px 13px; border-radius:7px; font-size:11px; font-weight:800; white-space:nowrap; cursor:default; }
+
+  /* ---- kanban ---- */
+  .kanban{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
+  @media (max-width:760px){ .kanban{ grid-template-columns:1fr; } }
+  .kanban-col{ background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:12px; min-height:120px; }
+  .kanban-col h3{ font-size:12px; text-transform:uppercase; letter-spacing:.05em; color:var(--muted); margin-bottom:10px; display:flex; justify-content:space-between; }
+  .kanban-card{ background:var(--bg); border:1px solid var(--border); border-radius:9px; padding:10px 11px; margin-bottom:8px; font-size:12.5px; cursor:grab; }
+  .kanban-card:active{ cursor:grabbing; }
+  .kanban-col.dragover{ border-color:var(--accent); background:rgba(47,143,255,.06); }
+
+  /* ---- planner por topico ---- */
+  .topic-row{ display:grid; grid-template-columns:1fr auto auto auto auto; align-items:center; gap:10px; padding:11px 0; border-bottom:1px solid var(--border); font-size:12.5px;}
+  .topic-row:last-child{ border-bottom:none; }
+  .topic-row .tname{ font-weight:600; }
+  .topic-row .tnext{ font-size:11px; color:var(--muted); }
+  .diff-input{ width:52px; padding:6px 7px; font-size:12px; }
+  .revisei-btn{ background:var(--ok); color:#0b1119; border:none; padding:7px 12px; border-radius:8px; font-size:11.5px; font-weight:800; cursor:pointer; white-space:nowrap;}
+  .revisei-btn:hover{ filter:brightness(1.08); }
+
+  /* ---- meta em horas ---- */
+  .hours-progress{ background:var(--panel2); border:1px solid var(--border); border-radius:12px; padding:16px 18px; }
+  .hours-progress .top{ display:flex; justify-content:space-between; align-items:baseline; margin-bottom:8px; }
+  .hours-progress .top .pctnum{ font-size:22px; font-weight:800; color:var(--accent); }
+  .hbar{ height:10px; background:var(--bg); border-radius:6px; overflow:hidden; }
+  .hbar > div{ height:100%; background:linear-gradient(90deg,var(--accent),var(--accent2)); transition: width .4s ease; }
+
+  /* ---- disponibilidade cronograma ---- */
+  .avail-row{ display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-bottom:14px; }
+  @media (max-width:760px){ .avail-row{ grid-template-columns:repeat(4,1fr);} }
+  .avail-cell{ text-align:center; }
+  .avail-cell label{ display:block; font-size:10.5px; color:var(--muted); margin-bottom:4px; font-weight:700; }
+  .avail-cell input{ text-align:center; padding:7px 4px; font-size:12px; }
+
+  /* ---- telas de autenticação / setup supabase ---- */
+  .auth-screen{ position:fixed; inset:0; background:var(--bg); display:flex; align-items:center; justify-content:center; z-index:2000; padding:20px; }
+  .auth-card{ width:100%; max-width:380px; background:var(--panel); border:1px solid var(--border); border-radius:20px; padding:28px 26px; }
+  .logout-row{ padding:10px 12px; margin-top:6px; }
+  .logout-btn{ width:100%; background:var(--panel2); border:1px solid var(--border); color:var(--muted); padding:9px; border-radius:9px; font-size:12px; font-weight:700; cursor:pointer; }
+  .logout-btn:hover{ color:var(--err); border-color:var(--err); }
+  .sync-badge{ font-size:10.5px; color:var(--ok); display:flex; align-items:center; gap:5px; padding:0 12px 8px; }
+</style>
+</head>
+<body>
+
+<!-- ================= TELA: CONECTAR SUPABASE ================= -->
+<div id="setupScreen" class="auth-screen" style="display:none;">
+  <div class="auth-card">
+    <div class="brand-badge" style="margin:0 auto 16px;">✦</div>
+    <h1 style="text-align:center; font-size:20px; margin-bottom:6px;">Conectar ao Supabase</h1>
+    <p style="text-align:center; font-size:12.5px; color:var(--muted); margin-bottom:20px;">Cole aqui a URL do projeto e a chave "anon public" que você pegou no painel do Supabase (Project Settings → API).</p>
+    <label class="field">Project URL</label>
+    <input type="text" id="setupUrl" placeholder="https://xxxxxxx.supabase.co" style="margin-bottom:12px;">
+    <label class="field">Anon public key</label>
+    <input type="text" id="setupKey" placeholder="eyJhbGciOi..." style="margin-bottom:16px;">
+    <button class="btn primary" id="setupSaveBtn" style="width:100%;">Conectar</button>
+    <div id="setupStatus" style="font-size:12px; color:var(--err); margin-top:10px; text-align:center;"></div>
+    <button class="btn" id="skipSetupBtn" style="width:100%; margin-top:14px;">Usar agora sem salvar na nuvem →</button>
+    <p style="font-size:11px; color:var(--muted); margin-top:18px; text-align:center; line-height:1.6;">Não criou seu projeto Supabase ainda? Acesse <b style="color:var(--ink);">supabase.com</b>, crie uma conta grátis e um novo projeto — depois volte aqui e cole as informações.</p>
+  </div>
+</div>
+
+<!-- ================= TELA: LOGIN / CADASTRO ================= -->
+<div id="authScreen" class="auth-screen" style="display:none;">
+  <div class="auth-card">
+    <div class="brand-badge" style="margin:0 auto 16px;">✦</div>
+    <h1 style="text-align:center; font-size:20px; margin-bottom:6px;" id="authTitle">Entrar</h1>
+    <p style="text-align:center; font-size:12.5px; color:var(--muted); margin-bottom:20px;">Missão Aprovação — seus dados sincronizados em qualquer dispositivo.</p>
+    <label class="field">E-mail</label>
+    <input type="text" id="authEmail" placeholder="voce@email.com" style="margin-bottom:12px;">
+    <label class="field">Senha</label>
+    <input type="password" id="authPassword" placeholder="••••••••" style="margin-bottom:16px;">
+    <button class="btn primary" id="authSubmitBtn" style="width:100%;">Entrar</button>
+    <button class="btn" id="authToggleBtn" style="width:100%; margin-top:10px;">Não tenho conta — Cadastrar</button>
+    <button class="btn" id="authForgotBtn" style="width:100%; margin-top:8px; background:transparent; border:none; color:var(--muted); font-size:12px;">Esqueci minha senha</button>
+    <div id="authStatus" style="font-size:12px; color:var(--err); margin-top:10px; text-align:center;"></div>
+  </div>
+</div>
+
+<div class="sidebar">
+  <div class="brand">
+    <div class="brand-badge">✦</div>
+    <div class="brand-text">
+      <div class="name">Missão Aprovação</div>
+      <div class="sub">painel de estudos</div>
+    </div>
+  </div>
+  <div class="course-select">
+    <select id="courseSelect"></select>
+  </div>
+  <div class="nav" id="nav">
+    <button class="nav-item active" data-view="painel"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-7 9 7"/><path d="M5 10v9a1 1 0 0 0 1 1h4v-6h4v6h4a1 1 0 0 0 1-1v-9"/></svg><span class="label">Painel</span></button>
+    <button class="nav-item" data-view="plano"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg><span class="label">Plano de Estudos</span></button>
+    <button class="nav-item" data-view="estatisticas"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20V10M12 20V4M20 20v-7"/></svg><span class="label">Estatísticas</span></button>
+    <button class="nav-item" data-view="erros"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span class="label">Caderno de Erros</span></button>
+    <button class="nav-item" data-view="flashcards"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="6" width="14" height="10" rx="2"/><path d="M8 20h14V10"/></svg><span class="label">Flashcards</span></button>
+    <button class="nav-item" data-view="biblioteca"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/><path d="M9 7h7M9 11h7"/></svg><span class="label">Biblioteca de Provas</span></button>
+    <button class="nav-item" data-view="resolver"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg><span class="label">Resolver Questões</span></button>
+    <button class="nav-item" data-view="discursiva"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg><span class="label">Discursiva</span></button>
+    <button class="nav-item" data-view="pomodoro"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg><span class="label">Pomodoro</span></button>
+    <div class="nav-divider"></div>
+    <button class="nav-item" data-view="config"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg><span class="label">Configurações</span></button>
+  </div>
+  <div class="sync-badge" id="syncBadge"></div>
+  <div class="logout-row"><button class="logout-btn" id="logoutBtn">Sair da conta</button></div>
+</div>
+
+<div class="main">
+
+  <!-- ================= PAINEL ================= -->
+  <div class="view active" id="view-painel">
+    <div class="topbar">
+      <div><p class="eyebrow">Desempenho</p><h1 class="view-title">Painel</h1></div>
+      <div class="streak-card">
+        <div class="streak-flame">🔥</div>
+        <div>
+          <div style="font-size:12.5px;"><b id="streakDays" style="color:var(--accent);">12</b> dias seguidos</div>
+          <div class="streak-days" id="streakWeek"></div>
+        </div>
+      </div>
+    </div>
+    <div class="grid2">
+      <div class="card">
+        <h2>Percentual de rendimento</h2>
+        <div class="donut-box">
+          <svg width="220" height="220" viewBox="0 0 220 220">
+            <circle cx="110" cy="110" r="90" fill="none" stroke="#2a2f38" stroke-width="26"/>
+            <circle id="arcWrong" cx="110" cy="110" r="90" fill="none" stroke="#e5556b" stroke-width="26" transform="rotate(-90 110 110)"/>
+            <circle id="arcCorrect" cx="110" cy="110" r="90" fill="none" stroke="#34d1a0" stroke-width="26" transform="rotate(-90 110 110)" style="transition: stroke-dasharray .5s ease;"/>
+          </svg>
+          <div class="donut-center"><div class="pct" id="donutPct">80%</div><div class="lbl">acertos</div></div>
+        </div>
+        <div class="legend"><span><i class="dot" style="background:var(--ok)"></i>Acertos</span><span><i class="dot" style="background:var(--err)"></i>Erros</span></div>
+      </div>
+      <div class="card">
+        <h2>Histórico de resoluções</h2>
+        <canvas id="lineChart" height="210"></canvas>
+      </div>
+    </div>
+    <div class="stats">
+      <div class="stat"><div class="num" id="statTotal">2490</div><div class="lbl">Resoluções de Questões</div></div>
+      <div class="stat correct"><div class="num" id="statCorrect">1993</div><div class="lbl">Resoluções Corretas</div></div>
+      <div class="stat wrong"><div class="num" id="statWrong">497</div><div class="lbl">Resoluções Erradas</div></div>
+    </div>
+
+    <div class="grid2" style="margin-top:16px;">
+      <div class="card">
+        <h2>Simulador cognitivo — curva do esquecimento</h2>
+        <div class="sim-wrap">
+          <div class="sim-ring">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <circle cx="60" cy="60" r="50" fill="none" stroke="#22303d" stroke-width="12"/>
+              <circle id="simArc" cx="60" cy="60" r="50" fill="none" stroke="#2f8fff" stroke-width="12" stroke-linecap="round" transform="rotate(-90 60 60)" style="transition: stroke-dasharray .4s ease;"/>
+            </svg>
+            <div class="val" id="simPct">76%</div>
+          </div>
+          <div class="sim-info">
+            <div style="font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; font-weight:700;">Retenção estimada agora</div>
+            <div class="next">Revisão ideal: <b id="simNextTopic">carregando…</b></div>
+            <div class="sim-decay-note">Baseado no seu perfil de memorização (SM-2): a retenção cai com o tempo desde a última revisão de cada carta/tópico. Revise antes que a curva chegue perto de 0%.</div>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h2>Revisões do dia</h2>
+        <div id="notifFeed"></div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>Meta semanal — horas estudadas</h2>
+      <div class="hours-progress">
+        <div class="top"><span style="font-size:13px; color:var(--muted);">Horas estudadas na semana</span><span class="pctnum" id="hoursPct">0%</span></div>
+        <div class="hbar"><div id="hoursBarFill" style="width:0%"></div></div>
+        <div style="font-size:12px; color:var(--muted); margin-top:8px;" id="hoursLabel">0 / 0 horas</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= PLANO DE ESTUDOS ================= -->
+  <div class="view" id="view-plano">
+    <div class="topbar"><div><p class="eyebrow">Organização</p><h1 class="view-title">Plano de Estudos</h1></div></div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h2>✦ Importar edital com IA</h2>
+      <p style="font-size:12.5px; color:var(--muted); margin:-4px 0 12px;">Envie o PDF do edital ou cole o texto das matérias. A IA extrai a lista, cria um novo curso e já calcula a prioridade de cada matéria.</p>
+      <div class="row-form" style="margin-bottom:10px;">
+        <input type="file" id="editalPdfInput" accept="application/pdf" style="flex:1;">
+      </div>
+      <textarea id="editalTextInput" rows="3" placeholder="Ou cole aqui o texto do edital / lista de matérias..."></textarea>
+      <div class="row-form" style="justify-content:flex-end;">
+        <button class="btn primary" id="editalImportBtn" style="flex:0;">✦ Importar edital com IA</button>
+      </div>
+      <div id="editalImportStatus" style="font-size:12px; color:var(--muted); margin-top:8px;"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h2>Edital verticalizado — prioridade automática</h2>
+      <p style="font-size:12px; color:var(--muted); margin:-6px 0 10px;">Prioridade = importância × dificuldade ÷ desempenho. Ajuste os pesos e a ordem se recalcula.</p>
+      <div id="editalList"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h2>Cronograma da semana — gerado a partir das prioridades</h2>
+      <div class="avail-row" id="availRow"></div>
+      <div class="cronograma" id="cronogramaGrid"></div>
+      <div class="row-form" style="justify-content:flex-end;">
+        <button class="btn" id="regenCronoBtn" style="flex:0;">↻ Recalcular cronograma</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h2>Planner por tópico — revisão inteligente</h2>
+      <p style="font-size:12px; color:var(--muted); margin:-6px 0 10px;">Marque "Revisei!" para registrar dificuldade e agendar a próxima revisão de cada matéria.</p>
+      <div id="topicPlanner"></div>
+    </div>
+
+    <div class="card" style="margin-bottom:16px;">
+      <h2>Organização Kanban</h2>
+      <div class="kanban" id="kanbanBoard">
+        <div class="kanban-col" data-status="revisar"><h3>A revisar</h3><div class="kanban-cards"></div></div>
+        <div class="kanban-col" data-status="revisando"><h3>Revisando</h3><div class="kanban-cards"></div></div>
+        <div class="kanban-col" data-status="dominado"><h3>Dominado</h3><div class="kanban-cards"></div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Tarefas do plano</h2>
+      <div class="plan-list" id="planList"></div>
+      <div class="row-form">
+        <input type="text" id="planDate" placeholder="Data (ex: 12/08)" style="max-width:120px;">
+        <input type="text" id="planTitle" placeholder="Descrição da tarefa (ex: Direito Constitucional - Cap. 3)">
+        <button class="btn primary" id="planAddBtn">Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= ESTATISTICAS ================= -->
+  <div class="view" id="view-estatisticas">
+    <div class="topbar"><div><p class="eyebrow">Análise</p><h1 class="view-title">Estatísticas</h1></div></div>
+    <div class="grid2" style="margin-bottom:16px;">
+      <div class="card">
+        <h2>Rendimento por matéria</h2>
+        <canvas id="barChart" height="220"></canvas>
+      </div>
+      <div class="card">
+        <h2>Meta semanal — questões por dia</h2>
+        <canvas id="goalChart" height="220"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Relatório semanal</h2>
+      <div id="reportBox"></div>
+    </div>
+  </div>
+
+  <!-- ================= CADERNO DE ERROS ================= -->
+  <div class="view" id="view-erros">
+    <div class="topbar"><div><p class="eyebrow">Revisão</p><h1 class="view-title">Caderno de Erros</h1></div></div>
+    <div class="card">
+      <h2>Questões marcadas</h2>
+      <table>
+        <thead><tr><th>Matéria</th><th>Questão</th><th></th></tr></thead>
+        <tbody id="errosTbody"></tbody>
+      </table>
+      <div class="row-form">
+        <input type="text" id="erroMateria" placeholder="Matéria" style="max-width:140px;">
+        <input type="text" id="erroQuestao" placeholder="Descrição da questão / erro cometido">
+        <button class="btn primary" id="erroAddBtn">Adicionar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= FLASHCARDS ================= -->
+  <div class="view" id="view-flashcards">
+    <div class="topbar"><div><p class="eyebrow">Memorização · Repetição espaçada SM-2</p><h1 class="view-title">Flashcards</h1></div></div>
+    <div class="card">
+      <div class="due-badge" id="dueBadge">0 cartas para revisar hoje</div>
+      <div class="flash-wrap">
+        <div class="flashcard" id="flashcard">
+          <div class="flashcard-inner">
+            <div class="flashcard-face front" id="cardFront">Frente</div>
+            <div class="flashcard-face back" id="cardBack">Verso</div>
+          </div>
+        </div>
+        <div class="flash-count" id="flashCount">1 / 1</div>
+        <div id="preFlipNav">
+          <button class="btn" id="flashFlip">Toque para ver a resposta</button>
+        </div>
+        <button class="btn danger" id="flashDeleteBtn" style="font-size:11px; padding:6px 12px;">🗑 Excluir esta carta</button>
+        <div id="ratingWrap" style="display:none; width:100%; text-align:center;">
+          <div style="font-size:12px; color:var(--muted); margin-bottom:6px;">Como foi sua resposta?</div>
+          <div class="rating-row">
+            <button class="rating-btn" data-r="0">Errei completamente</button>
+            <button class="rating-btn" data-r="1">Quase não sabia</button>
+            <button class="rating-btn" data-r="2">Fiquei em dúvida</button>
+            <button class="rating-btn" data-r="3">Sabia bem</button>
+            <button class="rating-btn" data-r="4">Sabia perfeitamente</button>
+          </div>
+          <div class="next-review" id="nextReviewInfo"></div>
+        </div>
+      </div>
+      <div class="row-form" style="margin-top:22px;">
+        <input type="text" id="cardFrontInput" placeholder="Pergunta (frente)">
+        <input type="text" id="cardBackInput" placeholder="Resposta (verso)">
+        <button class="btn primary" id="cardAddBtn">Adicionar carta</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>✦ Gerar flashcards com IA</h2>
+      <p style="font-size:12.5px; color:var(--muted); margin:-4px 0 12px;">Cole um resumo, trecho de material ou anotação. A IA lê e cria os flashcards para você.</p>
+      <textarea id="aiFlashInput" rows="4" placeholder="Cole aqui o conteúdo que você quer transformar em flashcards..."></textarea>
+      <div class="row-form" style="justify-content:flex-end;">
+        <button class="btn primary" id="aiFlashBtn" style="flex:0;">✦ Gerar flashcards com IA</button>
+      </div>
+      <div id="aiFlashStatus" style="font-size:12px; color:var(--muted); margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- ================= BIBLIOTECA DE PROVAS ================= -->
+  <div class="view" id="view-biblioteca">
+    <div class="topbar"><div><p class="eyebrow">Acervo</p><h1 class="view-title">Biblioteca de Provas</h1></div></div>
+    <div class="card" style="margin-bottom:16px;">
+      <h2>Provas disponíveis</h2>
+      <div class="exam-grid" id="examGrid"></div>
+    </div>
+    <div class="card">
+      <h2>Clonador de provas — IA</h2>
+      <p style="font-size:12.5px; color:var(--muted); margin:-4px 0 12px;">A IA estuda o estilo das provas anteriores da sua banca e gera um simulado no mesmo padrão.</p>
+      <div class="clone-box">
+        <select id="cloneExamSelect"></select>
+        <div class="clone-bar"><div id="cloneBarFill"></div></div>
+        <div id="cloneMetrics" style="display:none;">
+          <div class="clone-metric"><span>Estilo de escrita</span><b>98%</b></div>
+          <div class="clone-metric"><span>Pegadinhas típicas</span><b>96%</b></div>
+          <div class="clone-metric"><span>Formato das questões</span><b>99%</b></div>
+        </div>
+        <button class="btn primary" id="cloneBtn" style="margin-top:8px;">Gerar simulado no estilo da banca</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= RESOLVER QUESTOES ================= -->
+  <div class="view" id="view-resolver">
+    <div class="topbar"><div><p class="eyebrow">Prática</p><h1 class="view-title">Resolver Questões</h1></div></div>
+    <div class="card">
+      <h2 id="quizMateria">Direito Administrativo</h2>
+      <div class="question-box" id="quizQuestion"></div>
+      <div id="quizAlts"></div>
+      <div class="ai-explain" id="aiExplain"><div class="ai-tag">✦ Explicação da IA</div><div id="aiExplainText"></div></div>
+      <div class="row-form" style="justify-content:space-between;">
+        <button class="btn danger" id="quizDeleteBtn" style="font-size:11px; padding:6px 12px;">🗑 Excluir esta questão</button>
+        <button class="btn primary" id="quizNext" style="flex:0;">Próxima questão →</button>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h2>✦ Gerar questões com IA</h2>
+      <p style="font-size:12.5px; color:var(--muted); margin:-4px 0 12px;">Cole um trecho de matéria ou tema. A IA cria questões de múltipla escolha com gabarito e explicação.</p>
+      <textarea id="aiQuizInput" rows="4" placeholder="Cole aqui o conteúdo para gerar questões..."></textarea>
+      <div class="row-form" style="justify-content:flex-end;">
+        <button class="btn primary" id="aiQuizBtn" style="flex:0;">✦ Gerar questões com IA</button>
+      </div>
+      <div id="aiQuizStatus" style="font-size:12px; color:var(--muted); margin-top:8px;"></div>
+    </div>
+  </div>
+
+  <!-- ================= DISCURSIVA ================= -->
+  <div class="view" id="view-discursiva">
+    <div class="topbar"><div><p class="eyebrow">Redação</p><h1 class="view-title">Discursiva</h1></div></div>
+    <div class="card">
+      <h2 id="discTema">Tema: Princípios da Administração Pública</h2>
+      <textarea id="discText" rows="10" placeholder="Escreva sua resposta discursiva aqui..."></textarea>
+      <div class="word-count" id="discCount">0 palavras</div>
+      <div class="row-form" style="justify-content:flex-end;">
+        <button class="btn primary" id="discSaveBtn" style="flex:0;">Salvar rascunho</button>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h2>Rascunhos salvos</h2>
+      <div id="draftList"><p style="color:var(--muted); font-size:13px;">Nenhum rascunho salvo ainda.</p></div>
+    </div>
+  </div>
+
+  <!-- ================= POMODORO ================= -->
+  <div class="view" id="view-pomodoro">
+    <div class="topbar"><div><p class="eyebrow">Foco</p><h1 class="view-title">Pomodoro</h1></div></div>
+    <div class="card">
+      <div class="pomo-wrap">
+        <div class="pomo-presets" id="pomoPresets">
+          <button class="pomo-preset-btn" data-min="25">25 min</button>
+          <button class="pomo-preset-btn" data-min="30">30 min</button>
+          <button class="pomo-preset-btn" data-min="40">40 min</button>
+          <button class="pomo-preset-btn" data-min="50">50 min</button>
+        </div>
+        <div class="pomo-mode" id="pomoMode">FOCO</div>
+        <div class="pomo-ring">
+          <svg width="220" height="220" viewBox="0 0 220 220">
+            <circle cx="110" cy="110" r="95" fill="none" stroke="#22303d" stroke-width="14"/>
+            <circle id="pomoArc" cx="110" cy="110" r="95" fill="none" stroke="#2f8fff" stroke-width="14" transform="rotate(-90 110 110)" style="transition: stroke-dasharray .3s linear;"/>
+          </svg>
+          <div class="pomo-time" id="pomoTime">25:00</div>
+        </div>
+        <div class="pomo-controls">
+          <button class="btn primary" id="pomoStart">Iniciar</button>
+          <button class="btn" id="pomoReset">Reiniciar</button>
+        </div>
+        <div style="font-size:12.5px; color:var(--muted);">Ciclos concluídos: <b id="pomoCycles" style="color:var(--accent);">0</b></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= CONFIGURACOES ================= -->
+  <div class="view" id="view-config">
+    <div class="topbar"><div><p class="eyebrow">Ajustes</p><h1 class="view-title">Configurações</h1></div></div>
+    <div class="card">
+      <div class="setting-row">
+        <div><div class="name">Meta diária de questões</div><div class="desc">Quantidade de questões que você deseja resolver por dia</div></div>
+        <input type="number" id="cfgGoal" value="50" style="width:80px;">
+      </div>
+      <div class="setting-row">
+        <div><div class="name">Meta semanal de horas</div><div class="desc">Quantas horas por semana você quer estudar</div></div>
+        <input type="number" id="cfgHoursGoal" value="50" style="width:80px;">
+      </div>
+      <div class="setting-row">
+        <div><div class="name">Notificações de estudo</div><div class="desc">Lembretes para manter a sequência de estudos</div></div>
+        <div class="switch on" id="cfgNotif"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="name">Som do Pomodoro</div><div class="desc">Tocar som ao final de cada ciclo</div></div>
+        <div class="switch on" id="cfgSound"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="name">Sincronizar com Google Calendar</div><div class="desc">Envia revisões, tarefas e provas para sua agenda do Google</div></div>
+        <div class="switch" id="cfgGcal"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="name">Modo multi-cursos</div><div class="desc">Estude para mais de uma prova ao mesmo tempo (troque no menu lateral)</div></div>
+        <div class="switch on" id="cfgMulti"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="name">Recuperação de senha por e-mail</div><div class="desc">Envia um link automático para redefinir a senha se você esquecer</div></div>
+        <div class="switch on" id="cfgResetEmail" style="pointer-events:none; opacity:.6;"></div>
+      </div>
+      <div class="setting-row">
+        <div><div class="name">Exportar backup dos dados</div><div class="desc">Baixa um arquivo .json com tudo que você já estudou</div></div>
+        <button class="btn" id="cfgExportBtn">⬇ Baixar backup</button>
+      </div>
+      <div class="setting-row">
+        <div><div class="name">Zerar questões resolvidas</div><div class="desc">Apaga o histórico de acertos e erros do painel</div></div>
+        <button class="btn danger" id="cfgResetStats">Zerar</button>
+      </div>
+      <div class="setting-row">
+        <div><div class="name">Zerar todos os dados</div><div class="desc">Remove plano, flashcards, erros e rascunhos</div></div>
+        <button class="btn danger" id="cfgResetAll">Apagar tudo</button>
+      </div>
+    </div>
+    <p style="text-align:center; font-size:11px; color:var(--muted); margin-top:14px;">Versão do app: 2026-08-15-v3</p>
+  </div>
+
+</div>
+
+<script>
+/* ===================== STATE (in-memory only) ===================== */
+const todayISO = new Date().toISOString().slice(0,10);
+function addDays(iso, days){ const d = new Date(iso); d.setDate(d.getDate()+days); return d.toISOString().slice(0,10); }
+
+const courses = {
+  sedes: {
+    label: 'SEDES DF — Concurso',
+    subjects: [
+      {name:'Const.', pct:82, importance:4, difficulty:3},
+      {name:'Adm.', pct:68, importance:5, difficulty:4},
+      {name:'Português', pct:91, importance:3, difficulty:2},
+      {name:'RLM', pct:57, importance:4, difficulty:5},
+      {name:'Info.', pct:74, importance:2, difficulty:2},
+      {name:'Legislação', pct:63, importance:4, difficulty:4},
+    ],
+    plan: [
+      {date:'10/08', title:'Direito Constitucional - Controle de Constitucionalidade', done:true},
+      {date:'12/08', title:'Português - Concordância verbal e nominal', done:true},
+      {date:'13/08', title:'Direito Administrativo - Poderes da Administração', done:false},
+      {date:'14/08', title:'Atualidades - Semana de revisão', done:false},
+      {date:'15/08', title:'Raciocínio Lógico - Proposições compostas', done:false},
+    ],
+  },
+  oab: {
+    label: 'OAB — 1ª Fase',
+    subjects: [
+      {name:'Ét. Prof.', pct:88, importance:5, difficulty:2},
+      {name:'Civil', pct:60, importance:4, difficulty:4},
+      {name:'Const.', pct:70, importance:4, difficulty:3},
+      {name:'Penal', pct:55, importance:3, difficulty:4},
+      {name:'Proc. Civil', pct:64, importance:4, difficulty:5},
+    ],
+    plan: [
+      {date:'11/08', title:'Ética Profissional - Estatuto da OAB', done:true},
+      {date:'13/08', title:'Direito Civil - Contratos', done:false},
+      {date:'16/08', title:'Processo Civil - Recursos', done:false},
+    ],
+  }
+};
+let activeCourse = 'sedes';
+
+const state = {
+  correct: 1993,
+  wrong: 497,
+  lineLabels: ['29/07','01/08','04/08','07/08','10/08','13/08','16/08','19/08','22/08','25/08','28/08'],
+  lineValues: [100,25,160,10,60,55,90,165,15,90,20,150,75,190,10,105,220,20,205,115],
+  errors: [
+    {materia:'Constitucional', questao:'Confundi hierarquia entre EC e lei complementar.'},
+    {materia:'RLM', questao:'Errei tabela verdade com bicondicional.'},
+  ],
+  cards: [
+    {front:'O que é o princípio da legalidade?', back:'A Administração só pode fazer o que a lei permite.', interval:0, repetition:0, ease:2.5, due: todayISO},
+    {front:'Diferença entre prescrição e decadência?', back:'Prescrição atinge a pretensão; decadência, o direito potestativo.', interval:6, repetition:2, ease:2.5, due: addDays(todayISO,6)},
+    {front:'O que é autotutela administrativa?', back:'Poder da Administração de rever seus próprios atos.', interval:1, repetition:1, ease:2.4, due: todayISO},
+  ],
+  cardIndex: 0,
+  cardRevealed: false,
+  exams: [
+    {name:'CESPE - SEDES DF 2023', meta:'120 questões · Objetiva'},
+    {name:'FGV - Analista 2022', meta:'80 questões · Objetiva'},
+    {name:'CESPE - Técnico 2021', meta:'100 questões · Objetiva'},
+    {name:'IBFC - Assistente 2020', meta:'60 questões · Objetiva'},
+  ],
+  quizBank: [
+    {materia:'Direito Administrativo', q:'A autotutela permite à Administração:', alts:['Revisar seus próprios atos','Julgar processos judiciais','Criar leis ordinárias','Alterar a Constituição'], answer:0,
+      explain:'A autotutela é o poder-dever da Administração de rever e anular seus próprios atos quando ilegais, ou revogá-los por conveniência e oportunidade, conforme a Súmula 473 do STF, sem precisar recorrer ao Judiciário.'},
+    {materia:'Português', q:'Assinale a frase com concordância correta:', alts:['Fazem dois anos que ele saiu','Faz dois anos que ele saiu','Fazem dois ano que ele saiu','Faziam dois anos que ele saiu, ontem'], answer:1,
+      explain:'O verbo "fazer" indicando tempo decorrido é impessoal e fica sempre na 3ª pessoa do singular: "faz dois anos". Por isso as formas no plural ("fazem") estão incorretas.'},
+    {materia:'Raciocínio Lógico', q:'Se "p" é falso e "q" é verdadeiro, "p → q" é:', alts:['Falso','Verdadeiro','Indeterminado','Nulo'], answer:1,
+      explain:'O condicional "p → q" só é falso quando o antecedente é verdadeiro e o consequente é falso. Como "p" é falso, o condicional é verdadeiro independentemente do valor de "q".'},
+  ],
+  quizIndex: 0,
+  drafts: [],
+  goal: 50,
+  weeklyGoalData: [42,55,38,60,47,20,10], // Seg..Dom questions solved
+  streakDays: 12,
+  streakWeek: [1,1,1,0,1,1,0], // Seg..Dom, this week so far
+  cronograma: [],
+  config: {notif:true, sound:true, gcal:false, multi:true},
+  pomoCycles: 0,
+  hoursGoal: 50,
+  hoursStudied: 18.5,
+  kanban: {}, // key: `${course}::${subjectName}` -> 'revisar' | 'revisando' | 'dominado'
+  dayHours: [2,2,1.5,2,2,3,1], // Seg..Dom horas disponíveis
+};
+let dataLoaded = false;
+
+/* ===================== SUPABASE: conexão, auth e persistência ===================== */
+let sb = null;
+let currentUser = null;
+let localMode = false;
+const LS_URL_KEY = 'missao-aprovacao-supabase-url';
+const LS_KEY_KEY = 'missao-aprovacao-supabase-key';
+const LS_LOCAL_DATA_KEY = 'missao-aprovacao-local-data';
+
+function initSupabaseClient(url, key){
+  sb = window.supabase.createClient(url, key);
+}
+
+let saveQueue = Promise.resolve();
+function saveState(){
+  if(!dataLoaded) return;
+  // Congela o estado ATUAL agora mesmo (não espera a vez dele na fila pra "tirar a foto")
+  const snapshot = { courses: JSON.parse(JSON.stringify(courses)), activeCourse, state: JSON.parse(JSON.stringify(state)) };
+  if(localMode){
+    try{
+      localStorage.setItem(LS_LOCAL_DATA_KEY, JSON.stringify(snapshot));
+      showSavedToast('✓ Salvo neste navegador');
+    }catch(err){ console.error('Erro ao salvar:', err); }
+    return;
+  }
+  if(!sb || !currentUser) return;
+  // Enfileira: cada salvamento espera o anterior terminar, então nunca "atropela" um mais novo com um mais velho
+  saveQueue = saveQueue.then(()=>
+    sb.from('app_state').upsert({
+      user_id: currentUser.id,
+      data: snapshot,
+      updated_at: new Date().toISOString()
+    }, { onConflict: 'user_id' })
+    .then(({error})=>{
+      if(error) console.error('Erro ao salvar no Supabase:', error);
+      else showSavedToast('✓ Salvo na nuvem');
+    })
+    .catch(err=> console.error('Erro ao salvar:', err))
+  );
+}
+let savedToastTimer;
+function showSavedToast(msg){
+  let toast = document.getElementById('savedToast');
+  if(!toast){
+    toast = document.createElement('div');
+    toast.id = 'savedToast';
+    toast.style.cssText = 'position:fixed; bottom:18px; right:18px; background:var(--panel); border:1px solid var(--ok); color:var(--ok); padding:8px 14px; border-radius:9px; font-size:12px; font-weight:700; opacity:0; transition:opacity .25s ease; z-index:999; pointer-events:none;';
+    document.body.appendChild(toast);
+  }
+  toast.textContent = msg || '✓ Salvo';
+  toast.style.opacity = '1';
+  clearTimeout(savedToastTimer);
+  savedToastTimer = setTimeout(()=>{ toast.style.opacity = '0'; }, 1200);
+}
+async function loadState(){
+  try{
+    if(localMode){
+      const raw = localStorage.getItem(LS_LOCAL_DATA_KEY);
+      if(raw){
+        const data = JSON.parse(raw);
+        if(data.courses){ Object.keys(data.courses).forEach(k=>{ courses[k] = data.courses[k]; }); }
+        if(data.activeCourse && courses[data.activeCourse]) activeCourse = data.activeCourse;
+        if(data.state) Object.assign(state, data.state);
+      }
+      dataLoaded = true;
+      return;
+    }
+    const { data: rows, error } = await sb.from('app_state').select('data').eq('user_id', currentUser.id).maybeSingle();
+    if(error) console.error('Erro ao carregar do Supabase:', error);
+    if(rows && rows.data){
+      const data = rows.data;
+      if(data.courses){ Object.keys(data.courses).forEach(k=>{ courses[k] = data.courses[k]; }); }
+      if(data.activeCourse && courses[data.activeCourse]) activeCourse = data.activeCourse;
+      if(data.state) Object.assign(state, data.state);
+    }
+  }catch(err){
+    console.log('Sem dados salvos ainda, usando padrão.');
+  }
+  dataLoaded = true;
+}
+function applyConfigToUI(){
+  document.getElementById('cfgNotif').classList.toggle('on', !!state.config.notif);
+  document.getElementById('cfgSound').classList.toggle('on', !!state.config.sound);
+  document.getElementById('cfgGcal').classList.toggle('on', !!state.config.gcal);
+  document.getElementById('cfgMulti').classList.toggle('on', !!state.config.multi);
+  document.getElementById('cfgGoal').value = state.goal;
+  document.getElementById('cfgHoursGoal').value = state.hoursGoal;
+}
+// Salva sempre que a aba perde o foco ou é fechada, como reforço extra
+document.addEventListener('visibilitychange', ()=>{ if(document.visibilityState === 'hidden') saveState(); });
+window.addEventListener('pagehide', saveState);
+
+/* ---- Tela 1: conectar ao Supabase (URL + anon key) ou usar sem nuvem ---- */
+document.getElementById('setupSaveBtn').addEventListener('click', ()=>{
+  const url = document.getElementById('setupUrl').value.trim();
+  const key = document.getElementById('setupKey').value.trim();
+  const status = document.getElementById('setupStatus');
+  if(!url || !key){ status.textContent = 'Preencha os dois campos.'; return; }
+  if(!url.startsWith('https://') || !url.includes('supabase.co')){ status.textContent = 'Essa URL não parece certa. Copie do painel do Supabase.'; return; }
+  localStorage.setItem(LS_URL_KEY, url);
+  localStorage.setItem(LS_KEY_KEY, key);
+  boot();
+});
+document.getElementById('skipSetupBtn').addEventListener('click', ()=>{
+  localMode = true;
+  document.getElementById('setupScreen').style.display = 'none';
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('syncBadge').innerHTML = '● modo local (só este navegador)';
+  startApp();
+});
+
+/* ---- Tela 2: login / cadastro ---- */
+let authMode = 'login';
+document.getElementById('authToggleBtn').addEventListener('click', ()=>{
+  authMode = authMode === 'login' ? 'signup' : 'login';
+  document.getElementById('authTitle').textContent = authMode === 'login' ? 'Entrar' : 'Criar conta';
+  document.getElementById('authSubmitBtn').textContent = authMode === 'login' ? 'Entrar' : 'Cadastrar';
+  document.getElementById('authToggleBtn').textContent = authMode === 'login' ? 'Não tenho conta — Cadastrar' : 'Já tenho conta — Entrar';
+  document.getElementById('authStatus').textContent = '';
+});
+document.getElementById('authSubmitBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const status = document.getElementById('authStatus');
+  const btn = document.getElementById('authSubmitBtn');
+  if(!email || !password){ status.textContent = 'Preencha e-mail e senha.'; return; }
+  btn.disabled = true;
+  status.style.color = 'var(--muted)';
+  status.textContent = authMode === 'login' ? 'Entrando...' : 'Criando conta...';
+  try{
+    if(authMode === 'login'){
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if(error) throw error;
+      await onAuthenticated(data.user);
+    } else {
+      const { data, error } = await sb.auth.signUp({ email, password });
+      if(error) throw error;
+      if(data.user && !data.session){
+        status.style.color = 'var(--ok)';
+        status.textContent = 'Conta criada! Verifique seu e-mail para confirmar (ou tente entrar se a confirmação estiver desativada).';
+      } else if(data.user){
+        await onAuthenticated(data.user);
+      }
+    }
+  }catch(err){
+    status.style.color = 'var(--err)';
+    status.textContent = err.message || 'Erro ao autenticar.';
+  }
+  btn.disabled = false;
+});
+document.getElementById('authForgotBtn').addEventListener('click', async ()=>{
+  const email = document.getElementById('authEmail').value.trim();
+  const status = document.getElementById('authStatus');
+  if(!email){ status.style.color = 'var(--err)'; status.textContent = 'Digite seu e-mail no campo acima primeiro, depois toque em "Esqueci minha senha".'; return; }
+  status.style.color = 'var(--muted)';
+  status.textContent = 'Enviando e-mail de recuperação...';
+  try{
+    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.href });
+    if(error) throw error;
+    status.style.color = 'var(--ok)';
+    status.textContent = 'Enviamos um e-mail para ' + email + ' com um link para criar uma nova senha. Confira também a caixa de spam.';
+  }catch(err){
+    status.style.color = 'var(--err)';
+    status.textContent = err.message || 'Erro ao enviar e-mail de recuperação.';
+  }
+});
+document.getElementById('logoutBtn').addEventListener('click', async ()=>{
+  if(!confirm('Sair da conta?')) return;
+  if(!localMode && sb) await sb.auth.signOut();
+  currentUser = null;
+  localMode = false;
+  dataLoaded = false;
+  document.querySelector('.sidebar').style.display = 'none';
+  document.querySelector('.main').style.display = 'none';
+  boot();
+});
+
+async function onAuthenticated(user){
+  currentUser = user;
+  document.getElementById('authScreen').style.display = 'none';
+  document.getElementById('syncBadge').innerHTML = `● conectado como ${user.email}`;
+  await startApp();
+}
+
+/* ---- Boot: decide qual tela mostrar ---- */
+async function boot(){
+  const url = localStorage.getItem(LS_URL_KEY);
+  const key = localStorage.getItem(LS_KEY_KEY);
+  if(!url || !key){
+    document.getElementById('setupScreen').style.display = 'flex';
+    return;
+  }
+  document.getElementById('setupScreen').style.display = 'none';
+  initSupabaseClient(url, key);
+
+  // Detecta se a pessoa clicou no link de "recuperar senha" do e-mail
+  sb.auth.onAuthStateChange(async (event, session) => {
+    if(event === 'PASSWORD_RECOVERY'){
+      const novaSenha = prompt('Digite sua nova senha (mínimo 6 caracteres):');
+      if(novaSenha && novaSenha.length >= 6){
+        const { error } = await sb.auth.updateUser({ password: novaSenha });
+        if(error){ alert('Erro ao trocar senha: ' + error.message); }
+        else { alert('Senha alterada com sucesso! Você já está logado.'); await onAuthenticated(session.user); }
+      }
+    }
+  });
+
+  const { data: { session } } = await sb.auth.getSession();
+  if(session && session.user){
+    await onAuthenticated(session.user);
+  } else {
+    document.getElementById('authScreen').style.display = 'flex';
+  }
+}
+
+
+/* ===================== NAVIGATION ===================== */
+document.getElementById('nav').addEventListener('click', (e)=>{
+  const btn = e.target.closest('.nav-item');
+  if(!btn) return;
+  document.querySelectorAll('.nav-item').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  document.getElementById('view-'+btn.dataset.view).classList.add('active');
+});
+
+/* ===================== PAINEL ===================== */
+let lineChart;
+function renderDonut(){
+  const total = state.correct + state.wrong;
+  const pct = total ? Math.round((state.correct/total)*100) : 0;
+  document.getElementById('donutPct').textContent = pct + '%';
+  const r = 90, circumference = 2*Math.PI*r;
+  document.getElementById('arcWrong').setAttribute('stroke-dasharray', `${circumference}`);
+  document.getElementById('arcCorrect').setAttribute('stroke-dasharray', `${circumference*(pct/100)} ${circumference}`);
+}
+function renderLine(){
+  const ctx = document.getElementById('lineChart').getContext('2d');
+  const gradient = ctx.createLinearGradient(0,0,0,210);
+  gradient.addColorStop(0,'rgba(47,143,255,.35)'); gradient.addColorStop(1,'rgba(47,143,255,0)');
+  if(lineChart) lineChart.destroy();
+  lineChart = new Chart(ctx,{ type:'line', data:{ labels:state.lineLabels, datasets:[{ data: state.lineValues, borderColor:'#2f8fff', backgroundColor:gradient, fill:true, tension:.35, pointRadius:4, pointBackgroundColor:'#2f8fff', pointBorderColor:'#0f1c2e', pointBorderWidth:1.5, borderWidth:2.5 }]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}},
+      scales:{ x:{ ticks:{color:'#8ea1b2', font:{size:10}}, grid:{display:false} }, y:{ beginAtZero:true, ticks:{color:'#8ea1b2', font:{size:11}}, grid:{color:'#22303d'} } } } });
+  document.getElementById('lineChart').style.height='210px';
+}
+function updateStats(){
+  document.getElementById('statTotal').textContent = (state.correct+state.wrong).toLocaleString('pt-BR');
+  document.getElementById('statCorrect').textContent = state.correct.toLocaleString('pt-BR');
+  document.getElementById('statWrong').textContent = state.wrong.toLocaleString('pt-BR');
+}
+function renderPainel(){ renderDonut(); renderLine(); updateStats(); saveState(); }
+
+/* ===================== ESTATISTICAS ===================== */
+let barChart, goalChart;
+function renderBar(){
+  const subjects = courses[activeCourse].subjects;
+  const ctx = document.getElementById('barChart').getContext('2d');
+  if(barChart) barChart.destroy();
+  barChart = new Chart(ctx,{ type:'bar', data:{ labels: subjects.map(s=>s.name), datasets:[{ data: subjects.map(s=>s.pct), backgroundColor: subjects.map(s=> s.pct>=75?'#22c55e': s.pct>=60?'#2f8fff':'#ef4444'), borderRadius:6, maxBarThickness:46 }] },
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}, tooltip:{callbacks:{label:(i)=>i.formattedValue+'% de acerto'}}},
+      scales:{ x:{ ticks:{color:'#8ea1b2', font:{size:11}}, grid:{display:false} }, y:{ max:100, ticks:{color:'#8ea1b2', callback:v=>v+'%'}, grid:{color:'#22303d'} } } } });
+  document.getElementById('barChart').style.height='220px';
+}
+function renderGoalChart(){
+  const ctx = document.getElementById('goalChart').getContext('2d');
+  if(goalChart) goalChart.destroy();
+  const days = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  goalChart = new Chart(ctx,{ type:'bar', data:{ labels: days, datasets:[
+      { label:'Resolvidas', data: state.weeklyGoalData, backgroundColor: state.weeklyGoalData.map(v=> v>=state.goal ? '#22c55e' : '#2f8fff'), borderRadius:6, maxBarThickness:34 },
+    ]},
+    options:{ responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false},
+        tooltip:{ callbacks:{ label:(i)=> i.formattedValue + ` questões (meta: ${state.goal})` } } },
+      scales:{ x:{ ticks:{color:'#8ea1b2', font:{size:11}}, grid:{display:false} }, y:{ ticks:{color:'#8ea1b2'}, grid:{color:'#22303d'} } } } });
+  document.getElementById('goalChart').style.height='220px';
+}
+function renderReport(){
+  const subjects = courses[activeCourse].subjects;
+  const total = state.correct + state.wrong;
+  const pct = total ? Math.round(state.correct/total*100) : 0;
+  const weakest = subjects.slice().sort((a,b)=>a.pct-b.pct)[0];
+  const strongest = subjects.slice().sort((a,b)=>b.pct-a.pct)[0];
+  const weekTotal = state.weeklyGoalData.reduce((a,b)=>a+b,0);
+  const box = document.getElementById('reportBox');
+  box.innerHTML = `
+    <div class="report-line"><span>Questões resolvidas na semana</span><span class="v">${weekTotal}</span></div>
+    <div class="report-line"><span>Aproveitamento geral</span><span class="v">${pct}%</span></div>
+    <div class="report-line"><span>Matéria com melhor desempenho</span><span class="v">${strongest.name} (${strongest.pct}%)</span></div>
+    <div class="report-line"><span>Matéria que precisa de mais atenção</span><span class="v" style="color:var(--err)">${weakest.name} (${weakest.pct}%)</span></div>
+    <div class="report-line"><span>Sequência de estudos</span><span class="v">${state.streakDays} dias</span></div>
+    <p style="font-size:12.5px; color:var(--muted); margin-top:12px; line-height:1.5;">
+      Sugestão da IA: reforce <b style="color:var(--ink)">${weakest.name}</b> nesta semana — está abaixo das demais matérias.
+      Mantenha o ritmo em <b style="color:var(--ink)">${strongest.name}</b> com revisões espaçadas para não perder o que já foi fixado.
+    </p>`;
+}
+
+/* ===================== STREAK ===================== */
+function renderStreak(){
+  document.getElementById('streakDays').textContent = state.streakDays;
+  const days = ['D','S','T','Q','Q','S','S'];
+  const wrap = document.getElementById('streakWeek');
+  wrap.innerHTML = '';
+  state.streakWeek.forEach((on, i)=>{
+    const el = document.createElement('div');
+    el.className = 'streak-dot' + (on ? ' on' : '');
+    el.textContent = days[i];
+    wrap.appendChild(el);
+  });
+}
+
+/* ===================== COURSE SELECT ===================== */
+function renderCourseSelect(){
+  const sel = document.getElementById('courseSelect');
+  sel.innerHTML = '';
+  Object.keys(courses).forEach(key=>{
+    const opt = document.createElement('option');
+    opt.value = key; opt.textContent = courses[key].label;
+    if(key===activeCourse) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+document.getElementById('courseSelect').addEventListener('change', (e)=>{
+  activeCourse = e.target.value;
+  renderBar(); renderGoalChart(); renderReport(); renderEdital(); renderCronograma(); renderPlan();
+  renderTopicPlanner(); renderKanban(); renderSimulator(); renderNotifFeed();
+  saveState();
+});
+
+/* ===================== EDITAL VERTICALIZADO ===================== */
+function priorityInfo(s){
+  const score = (s.importance * s.difficulty) / Math.max(1, s.pct/100*5);
+  let level, color;
+  if(score >= 6){ level='Alta'; color='var(--err)'; }
+  else if(score >= 3){ level='Média'; color='var(--accent)'; }
+  else { level='Baixa'; color='var(--ok)'; }
+  return {score: score.toFixed(1), level, color};
+}
+const MAT_COLORS = ['#ef4444','#22c55e','#a78bfa','#f59e0b','#2f8fff','#ec4899','#14b8a6'];
+function colorForSubject(name){
+  let hash = 0;
+  for(let i=0;i<name.length;i++) hash = (hash*31 + name.charCodeAt(i)) >>> 0;
+  return MAT_COLORS[hash % MAT_COLORS.length];
+}
+function renderEdital(){
+  const subjects = courses[activeCourse].subjects;
+  const wrap = document.getElementById('editalList');
+  wrap.innerHTML = '';
+  subjects.slice().sort((a,b)=> (b.importance*b.difficulty/(b.pct/100*5||1)) - (a.importance*a.difficulty/(a.pct/100*5||1)) ).forEach(s=>{
+    const p = priorityInfo(s);
+    const color = colorForSubject(s.name);
+    ensureTopicFields(s);
+    const sessoesFeitas = Math.round((s.pct/100) * 12);
+    const horas = (2 + (s.difficulty||3) * 1.6).toFixed(0);
+    const questoes = 40 + s.importance*30;
+    const card = document.createElement('div');
+    card.className = 'mat-card';
+    card.innerHTML = `
+      <div class="mat-top">
+        <div class="mat-dot" style="background:${color};"></div>
+        <div class="mat-name" style="color:${color};">${s.name}</div>
+        <span class="mat-edit">✎</span>
+        <div class="mat-score" style="background:${p.color}22; color:${p.color};">${p.score}</div>
+      </div>
+      <div class="mat-pct-row"><span>${sessoesFeitas}/12 sessões</span><span>${s.pct}%</span></div>
+      <div class="mat-bar"><div style="width:${s.pct}%; background:${color};"></div></div>
+      <div class="mat-stats">
+        <span><b>${horas}h</b> tempo</span>
+        <span><b>${questoes}</b> questões</span>
+        <span style="color:${p.color};"><b>${p.level}</b> prioridade</span>
+      </div>
+      <div class="mini-slider" style="margin-bottom:8px; gap:14px;">
+        <span>Import. <input type="number" min="1" max="5" value="${s.importance}" data-field="importance" data-name="${s.name}"></span>
+        <span>Dificul. <input type="number" min="1" max="5" value="${s.difficulty}" data-field="difficulty" data-name="${s.name}"></span>
+      </div>
+      <button class="mat-topic-btn" disabled>+ Novo Tópico (em breve)</button>
+    `;
+    wrap.appendChild(card);
+  });
+  wrap.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const s = subjects.find(x=>x.name===inp.dataset.name);
+      s[inp.dataset.field] = Number(inp.value)||1;
+      renderEdital(); renderCronograma();
+    });
+  });
+  saveState();
+}
+function renderCronograma(){
+  const subjects = courses[activeCourse].subjects;
+  const ranked = subjects.slice().sort((a,b)=> (b.importance*b.difficulty/(b.pct/100*5||1)) - (a.importance*a.difficulty/(a.pct/100*5||1)) );
+  const days = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const grid = document.getElementById('cronogramaGrid');
+  grid.innerHTML = '';
+  days.forEach((d, i)=>{
+    const el = document.createElement('div');
+    el.className = 'crono-day';
+    const dayHrs = state.dayHours[i] || 0;
+    const picks = [ranked[i % ranked.length], ranked[(i+2) % ranked.length]].filter(Boolean);
+    let blocksHtml = '';
+    if(dayHrs <= 0){
+      blocksHtml = '<div class="crono-block" style="opacity:.5;">Sem tempo livre</div>';
+    } else {
+      picks.forEach((s,pi)=>{
+        const share = pi===0 ? 0.6 : 0.4;
+        const hrs = (dayHrs*share);
+        const h = Math.floor(hrs), m = Math.round((hrs-h)*60);
+        const label = h>0 ? `${h}h${m>0? m+'m':''}` : `${m}m`;
+        blocksHtml += `<div class="crono-block"><span class="cdot" style="background:${colorForSubject(s.name)};"></span>${s.name}<span class="ctime">${label}</span></div>`;
+      });
+    }
+    el.innerHTML = `<div class="dname">${d} · ${dayHrs}h livres</div>${blocksHtml}`;
+    grid.appendChild(el);
+  });
+  saveState();
+}
+function renderAvailability(){
+  const days = ['Seg','Ter','Qua','Qui','Sex','Sáb','Dom'];
+  const wrap = document.getElementById('availRow');
+  wrap.innerHTML = '';
+  days.forEach((d,i)=>{
+    const cell = document.createElement('div');
+    cell.className = 'avail-cell';
+    cell.innerHTML = `<label>${d}</label><input type="number" min="0" max="12" step="0.5" value="${state.dayHours[i]}" data-day="${i}">`;
+    wrap.appendChild(cell);
+  });
+  wrap.querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      state.dayHours[Number(inp.dataset.day)] = Number(inp.value)||0;
+      renderCronograma();
+    });
+  });
+}
+document.getElementById('regenCronoBtn').addEventListener('click', renderCronograma);
+
+/* ===================== SIMULADOR COGNITIVO (Curva do Esquecimento) ===================== */
+function ensureTopicFields(s){
+  if(s.diff10 === undefined) s.diff10 = Math.min(10, Math.max(1, Math.round((s.difficulty||3)*2)));
+  if(s.lastReview === undefined) s.lastReview = addDays(todayISO, -Math.floor(Math.random()*4)-1);
+  if(s.nextReview === undefined) s.nextReview = addDays(s.lastReview, Math.max(1, 8 - s.diff10));
+}
+function retentionFor(lastReview, diff10){
+  const daysSince = Math.max(0, (new Date(todayISO) - new Date(lastReview)) / 86400000);
+  const stability = Math.max(1, 11 - diff10);
+  const r = Math.exp(-daysSince / stability);
+  return Math.round(r*100);
+}
+function renderSimulator(){
+  const subjects = courses[activeCourse].subjects;
+  subjects.forEach(ensureTopicFields);
+  let worst = null, worstR = 101;
+  subjects.forEach(s=>{
+    const r = retentionFor(s.lastReview, s.diff10);
+    if(r < worstR){ worstR = r; worst = s; }
+  });
+  const pct = worst ? worstR : 76;
+  const circumference = 2*Math.PI*50;
+  document.getElementById('simArc').setAttribute('stroke-dasharray', `${circumference*(pct/100)} ${circumference}`);
+  document.getElementById('simPct').textContent = pct + '%';
+  document.getElementById('simNextTopic').textContent = worst ? `${worst.name} — hoje` : '—';
+}
+
+/* ===================== CENTRAL DE LEMBRETES ===================== */
+function renderNotifFeed(){
+  const subjects = courses[activeCourse].subjects;
+  subjects.forEach(ensureTopicFields);
+  const items = [];
+  subjects.slice().sort((a,b)=> retentionFor(a.lastReview,a.diff10) - retentionFor(b.lastReview,b.diff10)).slice(0,3).forEach(s=>{
+    items.push({color: colorForSubject(s.name), text:`${s.name}`, time:'Revisão do dia'});
+  });
+  dueQueue().slice(0,2).forEach(c=>{
+    items.push({color:'#2f8fff', text:`${c.front.slice(0,32)}${c.front.length>32?'…':''}`, time:'Flashcard pronto'});
+  });
+  const pendingPlan = courses[activeCourse].plan.filter(p=>!p.done).slice(0,2);
+  pendingPlan.forEach(p=>{
+    items.push({color:'#f59e0b', text:`${p.title.slice(0,34)}${p.title.length>34?'…':''}`, time:p.date});
+  });
+  const wrap = document.getElementById('notifFeed');
+  wrap.innerHTML = items.length ? items.map(it=>`<div class="notif-item" style="border-left-color:${it.color};"><div><div><b>${it.text}</b></div><div class="t">${it.time}</div></div><button class="notif-revisei">Revisei!</button></div>`).join('') : '<p style="font-size:12.5px;color:var(--muted);">Tudo em dia — sem lembretes agora.</p>';
+}
+
+
+/* ===================== META EM HORAS ===================== */
+function renderHoursGoal(){
+  const pct = Math.min(100, Math.round((state.hoursStudied/state.hoursGoal)*100)) || 0;
+  document.getElementById('hoursPct').textContent = pct + '%';
+  document.getElementById('hoursBarFill').style.width = pct + '%';
+  document.getElementById('hoursLabel').textContent = `${state.hoursStudied.toFixed(1)} / ${state.hoursGoal} horas`;
+}
+
+/* ===================== PLANNER POR TÓPICO ===================== */
+function renderTopicPlanner(){
+  const subjects = courses[activeCourse].subjects;
+  subjects.forEach(ensureTopicFields);
+  const wrap = document.getElementById('topicPlanner');
+  wrap.innerHTML = '';
+  subjects.forEach(s=>{
+    const row = document.createElement('div');
+    row.className = 'topic-row';
+    row.innerHTML = `
+      <div class="tname">${s.name}<div class="tnext">Próxima revisão: ${s.nextReview}</div></div>
+      <div class="mini-slider">Dif. <input type="number" class="diff-input" min="1" max="10" value="${s.diff10}" data-name="${s.name}"></div>
+      <div style="font-size:11px; color:var(--muted);">${retentionFor(s.lastReview, s.diff10)}% retido</div>
+      <div></div>
+      <button class="revisei-btn" data-name="${s.name}">Revisei!</button>
+    `;
+    wrap.appendChild(row);
+  });
+  wrap.querySelectorAll('.diff-input').forEach(inp=>{
+    inp.addEventListener('change', ()=>{
+      const s = subjects.find(x=>x.name===inp.dataset.name);
+      s.diff10 = Math.min(10, Math.max(1, Number(inp.value)||5));
+      renderTopicPlanner(); renderSimulator(); renderNotifFeed();
+    });
+  });
+  wrap.querySelectorAll('.revisei-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const s = subjects.find(x=>x.name===btn.dataset.name);
+      s.lastReview = todayISO;
+      s.nextReview = addDays(todayISO, Math.max(1, 8 - s.diff10));
+      renderTopicPlanner(); renderSimulator(); renderNotifFeed(); saveState();
+    });
+  });
+  saveState();
+}
+
+/* ===================== KANBAN ===================== */
+function kanbanKey(name){ return activeCourse + '::' + name; }
+function renderKanban(){
+  const subjects = courses[activeCourse].subjects;
+  const cols = { revisar:[], revisando:[], dominado:[] };
+  subjects.forEach(s=>{
+    const key = kanbanKey(s.name);
+    const status = state.kanban[key] || (s.pct>=80?'dominado': s.pct>=55?'revisando':'revisar');
+    cols[status].push(s);
+  });
+  document.querySelectorAll('.kanban-col').forEach(col=>{
+    const status = col.dataset.status;
+    const cardsWrap = col.querySelector('.kanban-cards');
+    cardsWrap.innerHTML = '';
+    cols[status].forEach(s=>{
+      const card = document.createElement('div');
+      card.className = 'kanban-card';
+      card.draggable = true;
+      card.textContent = s.name;
+      card.dataset.name = s.name;
+      card.addEventListener('dragstart', (e)=>{ e.dataTransfer.setData('text/plain', s.name); });
+      cardsWrap.appendChild(card);
+    });
+  });
+  saveState();
+}
+document.querySelectorAll('.kanban-col').forEach(col=>{
+  col.addEventListener('dragover', (e)=>{ e.preventDefault(); col.classList.add('dragover'); });
+  col.addEventListener('dragleave', ()=> col.classList.remove('dragover'));
+  col.addEventListener('drop', (e)=>{
+    e.preventDefault();
+    col.classList.remove('dragover');
+    const name = e.dataTransfer.getData('text/plain');
+    if(!name) return;
+    state.kanban[kanbanKey(name)] = col.dataset.status;
+    renderKanban();
+  });
+});
+
+/* ---- Importar edital (PDF ou texto) com IA ---- */
+document.getElementById('editalImportBtn').addEventListener('click', async ()=>{
+  const status = document.getElementById('editalImportStatus');
+  const btn = document.getElementById('editalImportBtn');
+  const fileInput = document.getElementById('editalPdfInput');
+  const textInput = document.getElementById('editalTextInput').value.trim();
+  const file = fileInput.files[0];
+  if(!file && !textInput){ status.textContent = 'Envie um PDF ou cole o texto do edital.'; return; }
+  status.textContent = '✦ Lendo o edital...';
+  btn.disabled = true;
+  try{
+    const sysPrompt = 'Você lê um edital de concurso ou lista de matérias e extrai as disciplinas cobradas. Responda SOMENTE com um array JSON válido, sem markdown, sem texto adicional, no formato exato: [{"name":"nome curto da matéria (máx 14 caracteres)","importance": numero de 1 a 5,"difficulty": numero de 1 a 5}]. Estime "importance" pelo peso/quantidade de itens da matéria no edital, e "difficulty" pela complexidade típica do conteúdo. Escreva os nomes em português, abreviados quando necessário.';
+    let parts;
+    if(file){
+      const base64Data = await new Promise((res, rej)=>{
+        const r = new FileReader();
+        r.onload = () => res(r.result.split(',')[1]);
+        r.onerror = () => rej(new Error('Falha ao ler o arquivo'));
+        r.readAsDataURL(file);
+      });
+      parts = [
+        { inline_data: { mime_type: 'application/pdf', data: base64Data } },
+        { text: 'Extraia as matérias cobradas neste edital.' }
+      ];
+    } else {
+      parts = [{ text: textInput }];
+    }
+    const subjects = await callGeminiRaw(sysPrompt, [{ role: "user", parts }]);
+    if(Array.isArray(subjects) && subjects.length){
+      const newSubjects = subjects.map(s=>({
+        name: (s.name || 'Matéria').toString().slice(0,14),
+        pct: 50,
+        importance: Math.min(5, Math.max(1, Number(s.importance) || 3)),
+        difficulty: Math.min(5, Math.max(1, Number(s.difficulty) || 3)),
+      }));
+      const key = 'edital-' + Date.now();
+      const courseName = file ? ('Edital: ' + file.name.replace(/\.pdf$/i,'').slice(0,26)) : 'Edital importado';
+      courses[key] = { label: courseName, subjects: newSubjects, plan: [] };
+      activeCourse = key;
+      renderCourseSelect();
+      renderBar(); renderGoalChart(); renderReport(); renderEdital(); renderCronograma(); renderPlan();
+      renderTopicPlanner(); renderKanban(); renderSimulator(); renderNotifFeed();
+      status.textContent = `${newSubjects.length} matérias importadas! Curso "${courseName}" criado e ativado.`;
+      fileInput.value = ''; document.getElementById('editalTextInput').value = '';
+      saveState();
+    } else {
+      status.textContent = 'Não consegui identificar as matérias. Tente outro arquivo ou texto.';
+    }
+  }catch(err){
+    console.error(err);
+    status.textContent = 'Erro ao importar o edital. Tente novamente.';
+  }
+  btn.disabled = false;
+});
+
+/* ===================== PLANO DE ESTUDOS ===================== */
+function renderPlan(){
+  const plan = courses[activeCourse].plan;
+  const wrap = document.getElementById('planList');
+  wrap.innerHTML = '';
+  plan.forEach((item, idx)=>{
+    const el = document.createElement('div');
+    el.className = 'plan-item' + (item.done ? ' done' : '');
+    el.innerHTML = `<div class="date">${item.date}</div><div class="check ${item.done?'checked':''}">${item.done?'✓':''}</div><div class="title">${item.title}</div>`;
+    el.querySelector('.check').addEventListener('click', ()=>{ item.done = !item.done; renderPlan(); });
+    wrap.appendChild(el);
+  });
+  saveState();
+}
+document.getElementById('planAddBtn').addEventListener('click', ()=>{
+  const date = document.getElementById('planDate').value.trim();
+  const title = document.getElementById('planTitle').value.trim();
+  if(!title) return;
+  courses[activeCourse].plan.push({date: date||'--/--', title, done:false});
+  document.getElementById('planDate').value=''; document.getElementById('planTitle').value='';
+  renderPlan();
+});
+
+/* ===================== CADERNO DE ERROS ===================== */
+function renderErrors(){
+  const tbody = document.getElementById('errosTbody');
+  tbody.innerHTML = '';
+  state.errors.forEach((e, idx)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><span class="tag">${e.materia}</span></td><td>${e.questao}</td><td><button class="del">✕</button></td>`;
+    tr.querySelector('.del').addEventListener('click', ()=>{ state.errors.splice(idx,1); renderErrors(); });
+    tbody.appendChild(tr);
+  });
+  saveState();
+}
+document.getElementById('erroAddBtn').addEventListener('click', ()=>{
+  const materia = document.getElementById('erroMateria').value.trim();
+  const questao = document.getElementById('erroQuestao').value.trim();
+  if(!materia || !questao) return;
+  state.errors.push({materia, questao});
+  document.getElementById('erroMateria').value=''; document.getElementById('erroQuestao').value='';
+  renderErrors();
+});
+
+/* ===================== FLASHCARDS — SM-2 ===================== */
+function dueQueue(){
+  return state.cards.filter(c => c.due <= todayISO).sort((a,b)=> a.due.localeCompare(b.due));
+}
+function renderFlashcard(){
+  const queue = dueQueue();
+  document.getElementById('dueBadge').textContent = `${queue.length} carta${queue.length===1?'':'s'} para revisar hoje`;
+  document.getElementById('flashcard').classList.remove('flipped');
+  document.getElementById('preFlipNav').style.display = 'block';
+  document.getElementById('ratingWrap').style.display = 'none';
+  state.cardRevealed = false;
+
+  if(!queue.length){
+    document.getElementById('cardFront').textContent = state.cards.length ? 'Tudo revisado por hoje! 🎉' : 'Adicione uma carta';
+    document.getElementById('cardBack').textContent = '';
+    document.getElementById('flashCount').textContent = `0 / ${state.cards.length}`;
+    return;
+  }
+  if(state.cardIndex >= queue.length) state.cardIndex = 0;
+  const c = queue[state.cardIndex];
+  document.getElementById('cardFront').textContent = c.front;
+  document.getElementById('cardBack').textContent = c.back;
+  document.getElementById('flashCount').textContent = `${state.cardIndex+1} / ${queue.length}`;
+  saveState();
+}
+document.getElementById('flashcard').addEventListener('click', revealCard);
+document.getElementById('flashFlip').addEventListener('click', revealCard);
+function revealCard(){
+  if(!dueQueue().length) return;
+  document.getElementById('flashcard').classList.add('flipped');
+  document.getElementById('preFlipNav').style.display = 'none';
+  document.getElementById('ratingWrap').style.display = 'block';
+  state.cardRevealed = true;
+}
+document.querySelectorAll('.rating-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    const rating = Number(btn.dataset.r);
+    const queue = dueQueue();
+    const card = queue[state.cardIndex];
+    if(!card) return;
+    if(rating < 2){ card.repetition = 0; card.interval = 1; }
+    else {
+      card.repetition++;
+      if(card.repetition === 1) card.interval = 1;
+      else if(card.repetition === 2) card.interval = 6;
+      else card.interval = Math.round(card.interval * card.ease);
+      card.ease = Math.max(1.3, card.ease + (0.1 - (4-rating)*(0.08 + (4-rating)*0.02)));
+    }
+    card.due = addDays(todayISO, card.interval);
+    document.getElementById('nextReviewInfo').textContent = `📅 Próxima revisão: em ${card.interval} dia${card.interval===1?'':'s'}`;
+    setTimeout(()=>{ renderFlashcard(); }, 700);
+  });
+});
+document.getElementById('cardAddBtn').addEventListener('click', ()=>{
+  const front = document.getElementById('cardFrontInput').value.trim();
+  const back = document.getElementById('cardBackInput').value.trim();
+  if(!front || !back) return;
+  state.cards.push({front, back, interval:0, repetition:0, ease:2.5, due: todayISO});
+  document.getElementById('cardFrontInput').value=''; document.getElementById('cardBackInput').value='';
+  renderFlashcard();
+});
+document.getElementById('flashDeleteBtn').addEventListener('click', ()=>{
+  const queue = dueQueue();
+  const card = queue[state.cardIndex];
+  if(!card) return;
+  if(!confirm('Excluir esta carta permanentemente?')) return;
+  const realIndex = state.cards.indexOf(card);
+  if(realIndex > -1) state.cards.splice(realIndex, 1);
+  state.cardIndex = 0;
+  renderFlashcard();
+});
+
+/* ---- IA: gerar conteúdo via API da Anthropic ---- */
+async function callGeminiRaw(systemPrompt, contents){
+  const url = localStorage.getItem(LS_URL_KEY);
+  const key = localStorage.getItem(LS_KEY_KEY);
+  if(!url || !key) throw new Error('Supabase não conectado.');
+  const response = await fetch(`${url}/functions/v1/ai-proxy`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${key}`,
+      "apikey": key
+    },
+    body: JSON.stringify({ system: systemPrompt, contents })
+  });
+  if(!response.ok){
+    const errText = await response.text().catch(()=> '');
+    throw new Error('Falha na requisição (' + response.status + '): ' + errText.slice(0,300));
+  }
+  const data = await response.json();
+  if(data.error){
+    throw new Error('Erro da IA: ' + (data.error.message || JSON.stringify(data.error)).slice(0,300));
+  }
+  const text = data?.candidates?.[0]?.content?.parts?.map(p=>p.text||'').join('\n') || '';
+  if(!text){
+    throw new Error('A IA não retornou texto. Resposta bruta: ' + JSON.stringify(data).slice(0,300));
+  }
+  const clean = text.replace(/```json|```/g, '').trim();
+  try{
+    return JSON.parse(clean);
+  }catch(parseErr){
+    throw new Error('Não consegui ler a resposta da IA como JSON: ' + clean.slice(0,200));
+  }
+}
+async function callClaudeJSON(systemPrompt, userPrompt){
+  return callGeminiRaw(systemPrompt, [{ role: "user", parts: [{ text: userPrompt }] }]);
+}
+
+document.getElementById('aiFlashBtn').addEventListener('click', async ()=>{
+  const input = document.getElementById('aiFlashInput').value.trim();
+  const status = document.getElementById('aiFlashStatus');
+  const btn = document.getElementById('aiFlashBtn');
+  if(!input){ status.textContent = 'Cole um conteúdo primeiro.'; return; }
+  status.textContent = '✦ Gerando flashcards com IA...';
+  btn.disabled = true;
+  try{
+    const cards = await callClaudeJSON(
+      'Você cria flashcards de estudo a partir de um texto fornecido pelo usuário. Responda SOMENTE com um array JSON válido, sem markdown, sem texto adicional antes ou depois, no formato exato: [{"front":"pergunta curta","back":"resposta objetiva"}]. Gere entre 4 e 8 flashcards, cobrindo os pontos mais importantes do texto. Escreva em português.',
+      input
+    );
+    if(Array.isArray(cards) && cards.length){
+      cards.forEach(c=>{ if(c.front && c.back) state.cards.push({front:c.front, back:c.back, interval:0, repetition:0, ease:2.5, due: todayISO}); });
+      status.textContent = `${cards.length} flashcards adicionados com sucesso!`;
+      document.getElementById('aiFlashInput').value = '';
+      renderFlashcard();
+    } else {
+      status.textContent = 'Não consegui gerar os flashcards. Tente reformular o texto.';
+    }
+  }catch(err){
+    console.error(err);
+    status.textContent = 'Erro: ' + (err.message || String(err));
+  }
+  btn.disabled = false;
+});
+
+/* ===================== BIBLIOTECA ===================== */
+function renderExams(){
+  const grid = document.getElementById('examGrid');
+  grid.innerHTML = '';
+  state.exams.forEach(ex=>{
+    const el = document.createElement('div');
+    el.className = 'exam-card';
+    el.innerHTML = `<div class="name">${ex.name}</div><div class="meta">${ex.meta}</div><button class="btn">Abrir prova</button>`;
+    grid.appendChild(el);
+  });
+  const sel = document.getElementById('cloneExamSelect');
+  sel.innerHTML = state.exams.map(ex=>`<option>${ex.name}</option>`).join('');
+}
+document.getElementById('cloneBtn').addEventListener('click', (e)=>{
+  const fill = document.getElementById('cloneBarFill');
+  const metrics = document.getElementById('cloneMetrics');
+  e.target.disabled = true; e.target.textContent = 'Analisando estilo da banca...';
+  fill.style.width = '0%'; metrics.style.display = 'none';
+  requestAnimationFrame(()=>{ fill.style.width = '100%'; });
+  setTimeout(()=>{
+    metrics.style.display = 'block';
+    e.target.disabled = false;
+    e.target.textContent = 'Simulado gerado ✓ — gerar outro';
+  }, 1300);
+});
+
+/* ===================== RESOLVER QUESTOES ===================== */
+function renderQuiz(){
+  const q = state.quizBank[state.quizIndex];
+  document.getElementById('quizMateria').textContent = q.materia;
+  document.getElementById('quizQuestion').textContent = q.q;
+  const wrap = document.getElementById('quizAlts');
+  wrap.innerHTML = '';
+  const letters = ['A','B','C','D'];
+  q.alts.forEach((alt, i)=>{
+    const el = document.createElement('div');
+    el.className = 'alt';
+    el.innerHTML = `<div class="alt-letter">${letters[i]}</div><div>${alt}</div>`;
+    el.addEventListener('click', ()=>{
+      if(el.dataset.answered) return;
+      wrap.dataset.answered = '1';
+      const correctIdx = q.answer;
+      [...wrap.children].forEach((child, ci)=>{
+        child.dataset.answered = '1';
+        if(ci===correctIdx) child.classList.add('correct');
+        else if(ci===i) child.classList.add('wrong');
+      });
+      if(i===correctIdx) state.correct++; else state.wrong++;
+      renderPainel();
+      document.getElementById('aiExplainText').textContent = q.explain;
+      document.getElementById('aiExplain').classList.add('show');
+    });
+    wrap.appendChild(el);
+  });
+}
+document.getElementById('quizNext').addEventListener('click', ()=>{
+  state.quizIndex = (state.quizIndex+1)%state.quizBank.length;
+  document.getElementById('quizAlts').dataset.answered='';
+  document.getElementById('aiExplain').classList.remove('show');
+  renderQuiz();
+});
+document.getElementById('quizDeleteBtn').addEventListener('click', ()=>{
+  if(state.quizBank.length <= 1){ alert('Precisa ter pelo menos 1 questão no banco.'); return; }
+  if(!confirm('Excluir esta questão permanentemente?')) return;
+  state.quizBank.splice(state.quizIndex, 1);
+  if(state.quizIndex >= state.quizBank.length) state.quizIndex = 0;
+  document.getElementById('quizAlts').dataset.answered='';
+  document.getElementById('aiExplain').classList.remove('show');
+  renderQuiz();
+  saveState();
+});
+
+document.getElementById('aiQuizBtn').addEventListener('click', async ()=>{
+  const input = document.getElementById('aiQuizInput').value.trim();
+  const status = document.getElementById('aiQuizStatus');
+  const btn = document.getElementById('aiQuizBtn');
+  if(!input){ status.textContent = 'Cole um conteúdo primeiro.'; return; }
+  status.textContent = '✦ Gerando questões com IA...';
+  btn.disabled = true;
+  try{
+    const questions = await callClaudeJSON(
+      'Você cria questões de múltipla escolha de concurso/prova a partir de um texto fornecido pelo usuário. Responda SOMENTE com um array JSON válido, sem markdown, sem texto adicional, no formato exato: [{"materia":"nome curto da matéria","q":"enunciado da questão","alts":["alternativa A","alternativa B","alternativa C","alternativa D"],"answer":0,"explain":"explicação objetiva de por que a alternativa correta está certa"}]. O campo "answer" é o índice (0 a 3) da alternativa correta. Gere entre 2 e 5 questões. Escreva em português.',
+      input
+    );
+    if(Array.isArray(questions) && questions.length){
+      questions.forEach(q=>{ if(q.q && Array.isArray(q.alts)) state.quizBank.push(q); });
+      status.textContent = `${questions.length} questões adicionadas com sucesso!`;
+      document.getElementById('aiQuizInput').value = '';
+      renderQuiz();
+      saveState();
+    } else {
+      status.textContent = 'Não consegui gerar as questões. Tente reformular o texto.';
+    }
+  }catch(err){
+    console.error(err);
+    status.textContent = 'Erro: ' + (err.message || String(err));
+  }
+  btn.disabled = false;
+});
+
+/* ===================== DISCURSIVA ===================== */
+const discText = document.getElementById('discText');
+discText.addEventListener('input', ()=>{
+  const words = discText.value.trim().split(/\s+/).filter(Boolean).length;
+  document.getElementById('discCount').textContent = words + ' palavras';
+});
+function renderDrafts(){
+  const wrap = document.getElementById('draftList');
+  if(!state.drafts.length){ wrap.innerHTML = '<p style="color:var(--muted); font-size:13px;">Nenhum rascunho salvo ainda.</p>'; return; }
+  wrap.innerHTML = '';
+  state.drafts.slice().reverse().forEach(d=>{
+    const el = document.createElement('div');
+    el.className = 'draft-item';
+    el.innerHTML = `<div class="meta">${d.date} · ${d.words} palavras</div>${d.preview}`;
+    wrap.appendChild(el);
+  });
+  saveState();
+}
+document.getElementById('discSaveBtn').addEventListener('click', ()=>{
+  const text = discText.value.trim();
+  if(!text) return;
+  const words = text.split(/\s+/).filter(Boolean).length;
+  state.drafts.push({date: new Date().toLocaleDateString('pt-BR'), words, preview: text.slice(0,140)+(text.length>140?'…':'')});
+  renderDrafts();
+});
+
+/* ===================== POMODORO ===================== */
+const pomo = { focus: (state.pomoFocusMin||25)*60, brk: 5*60, remaining: (state.pomoFocusMin||25)*60, mode:'focus', running:false, timer:null, cycles:0 };
+const pomoArc = document.getElementById('pomoArc');
+const pomoCircumference = 2*Math.PI*95;
+function renderPomo(){
+  const total = pomo.mode==='focus' ? pomo.focus : pomo.brk;
+  const frac = pomo.remaining/total;
+  pomoArc.setAttribute('stroke-dasharray', `${pomoCircumference*frac} ${pomoCircumference}`);
+  const m = Math.floor(pomo.remaining/60).toString().padStart(2,'0');
+  const s = Math.floor(pomo.remaining%60).toString().padStart(2,'0');
+  document.getElementById('pomoTime').textContent = `${m}:${s}`;
+  document.getElementById('pomoMode').textContent = pomo.mode==='focus' ? 'FOCO' : 'PAUSA';
+  document.getElementById('pomoCycles').textContent = pomo.cycles;
+}
+function renderPomoPresets(){
+  const mins = Math.round(pomo.focus/60);
+  document.querySelectorAll('.pomo-preset-btn').forEach(btn=>{
+    btn.classList.toggle('active', Number(btn.dataset.min) === mins);
+  });
+}
+document.querySelectorAll('.pomo-preset-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    if(pomo.running) return; // evita trocar duração com o timer rodando
+    const mins = Number(btn.dataset.min);
+    pomo.focus = mins*60;
+    state.pomoFocusMin = mins;
+    if(pomo.mode==='focus') pomo.remaining = pomo.focus;
+    renderPomoPresets();
+    renderPomo();
+    saveState();
+  });
+});
+function playPomoSound(){
+  if(!state.config.sound) return;
+  try{
+    const ctx = new (window.AudioContext || window.webkitAudioContext)();
+    [0, 0.18, 0.36].forEach((delay, i)=>{
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.value = i === 2 ? 880 : 660;
+      gain.gain.setValueAtTime(0.15, ctx.currentTime + delay);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + delay + 0.15);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + delay);
+      osc.stop(ctx.currentTime + delay + 0.16);
+    });
+  }catch(e){ console.log('Som não pôde tocar:', e); }
+}
+function pomoTick(){
+  pomo.remaining--;
+  if(pomo.remaining<=0){
+    playPomoSound();
+    if(pomo.mode==='focus'){ pomo.cycles++; pomo.mode='brk'; pomo.remaining=pomo.brk; state.pomoCycles = pomo.cycles; state.hoursStudied = Math.round((state.hoursStudied + pomo.focus/3600)*10)/10; renderHoursGoal(); saveState(); }
+    else { pomo.mode='focus'; pomo.remaining=pomo.focus; }
+  }
+  renderPomo();
+}
+document.getElementById('pomoStart').addEventListener('click', (e)=>{
+  pomo.running = !pomo.running;
+  e.target.textContent = pomo.running ? 'Pausar' : 'Iniciar';
+  if(pomo.running){ pomo.timer = setInterval(pomoTick, 1000); }
+  else { clearInterval(pomo.timer); }
+});
+document.getElementById('pomoReset').addEventListener('click', ()=>{
+  clearInterval(pomo.timer); pomo.running=false; pomo.mode='focus'; pomo.remaining=pomo.focus;
+  document.getElementById('pomoStart').textContent='Iniciar';
+  renderPomo();
+});
+
+/* ===================== CONFIGURACOES ===================== */
+document.getElementById('cfgNotif').addEventListener('click', (e)=>{ e.target.classList.toggle('on'); state.config.notif = e.target.classList.contains('on'); saveState(); });
+document.getElementById('cfgSound').addEventListener('click', (e)=>{ e.target.classList.toggle('on'); state.config.sound = e.target.classList.contains('on'); saveState(); });
+document.getElementById('cfgGcal').addEventListener('click', (e)=>{ e.target.classList.toggle('on'); state.config.gcal = e.target.classList.contains('on'); saveState(); });
+document.getElementById('cfgMulti').addEventListener('click', (e)=>{ e.target.classList.toggle('on'); state.config.multi = e.target.classList.contains('on'); saveState(); });
+let goalDebounce, hoursGoalDebounce;
+function saveGoal(){
+  clearTimeout(goalDebounce);
+  goalDebounce = setTimeout(()=>{
+    const v = Number(document.getElementById('cfgGoal').value);
+    if(v > 0){ state.goal = v; renderGoalChart(); saveState(); }
+  }, 600);
+}
+function saveHoursGoal(){
+  clearTimeout(hoursGoalDebounce);
+  hoursGoalDebounce = setTimeout(()=>{
+    const v = Number(document.getElementById('cfgHoursGoal').value);
+    if(v > 0){ state.hoursGoal = v; renderHoursGoal(); saveState(); }
+  }, 600);
+}
+document.getElementById('cfgGoal').addEventListener('input', saveGoal);
+document.getElementById('cfgGoal').addEventListener('blur', saveGoal);
+document.getElementById('cfgHoursGoal').addEventListener('input', saveHoursGoal);
+document.getElementById('cfgHoursGoal').addEventListener('blur', saveHoursGoal);
+document.getElementById('cfgResetStats').addEventListener('click', ()=>{
+  if(confirm('Zerar questões resolvidas do painel?')){ state.correct=0; state.wrong=0; renderPainel(); }
+});
+document.getElementById('cfgResetAll').addEventListener('click', ()=>{
+  if(confirm('Isso vai apagar plano, flashcards, erros e rascunhos. Continuar?')){
+    courses[activeCourse].plan=[]; state.errors=[]; state.cards=[]; state.drafts=[]; state.cardIndex=0;
+    renderPlan(); renderErrors(); renderFlashcard(); renderDrafts();
+  }
+});
+document.getElementById('cfgExportBtn').addEventListener('click', ()=>{
+  const backup = {
+    exportadoEm: new Date().toISOString(),
+    usuario: currentUser ? currentUser.email : (localMode ? 'modo local' : 'desconhecido'),
+    courses, activeCourse, state
+  };
+  const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const dataStr = new Date().toISOString().slice(0,10);
+  a.href = url;
+  a.download = `missao-aprovacao-backup-${dataStr}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+});
+
+/* ===================== PWA: Service Worker de verdade ===================== */
+if('serviceWorker' in navigator){
+  window.addEventListener('load', ()=>{
+    navigator.serviceWorker.register('sw.js').catch(err=>console.log('Service Worker não registrado:', err));
+  });
+}
+
+/* ===================== INIT ===================== */
+async function startApp(){
+  document.querySelector('.sidebar').style.display = '';
+  document.querySelector('.main').style.display = '';
+  await loadState();
+  renderCourseSelect();
+  renderStreak();
+  renderPainel();
+  renderBar();
+  renderGoalChart();
+  renderReport();
+  renderEdital();
+  renderAvailability();
+  renderCronograma();
+  renderPlan();
+  renderTopicPlanner();
+  renderKanban();
+  renderSimulator();
+  renderNotifFeed();
+  renderHoursGoal();
+  renderErrors();
+  pomo.cycles = state.pomoCycles || 0;
+  pomo.focus = (state.pomoFocusMin || 25) * 60;
+  pomo.remaining = pomo.focus;
+  renderPomoPresets();
+  renderFlashcard();
+  renderExams();
+  renderQuiz();
+  renderDrafts();
+  renderPomo();
+  applyConfigToUI();
+}
+document.querySelector('.sidebar').style.display = 'none';
+document.querySelector('.main').style.display = 'none';
+boot();
+</script>
+</body>
+</html>
